@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>供应商管理 - LogDoctor</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+  <div class="inner">
+    <a href="/" class="logo">
+      <span class="icon">&#9889;</span>
+      LogDoctor
+    </a>
+    <nav>
+      <a href="/">诊断</a>
+      <a href="/history">历史记录</a>
+      <a href="/providers" class="active">供应商管理</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+
+  <div class="card">
+    <div class="card-header">
+      <h2>供应商管理</h2>
+      <button class="btn btn-primary btn-sm" onclick="openCreateModal()">+ 新增</button>
+    </div>
+
+    <div id="providers-content">
+      <div class="spinner active"></div>
+    </div>
+  </div>
+
+</main>
+
+<footer>LogDoctor &mdash; AI 驱动的运维日志诊断工具</footer>
+<div id="toast" class="toast"></div>
+
+<!-- Modal -->
+<div id="modal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <h3 id="modal-title">新增供应商</h3>
+    <form id="modal-form" onsubmit="submitProvider(event)">
+      <div class="form-group">
+        <label>名称</label>
+        <input type="text" id="fld-name" required placeholder="DeepSeek / OpenAI / 通义千问">
+      </div>
+      <div class="form-group">
+        <label>API Key</label>
+        <input type="password" id="fld-api-key" required placeholder="sk-...">
+      </div>
+      <div class="form-group">
+        <label>Base URL</label>
+        <input type="url" id="fld-base-url" required placeholder="https://api.deepseek.com/v1">
+      </div>
+      <div class="form-group">
+        <label>模型</label>
+        <input type="text" id="fld-model" required placeholder="deepseek-chat">
+      </div>
+      <label class="checkbox-label">
+        <input type="checkbox" id="fld-is-default"> 设为默认供应商
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">取消</button>
+        <button type="submit" class="btn btn-primary" id="modal-submit-btn">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+let editingId = null;
+
+async function loadProviders() {
+  const container = document.getElementById("providers-content");
+  try {
+    const resp = await fetch("/api/providers");
+    const data = await resp.json();
+    if (!data || data.length === 0) {
+      container.innerHTML = '<div class="empty"><span class="icon">&#9881;</span><p>暂无供应商配置</p></div>';
+      return;
+    }
+    let html = '<table class="data-table"><thead><tr><th>名称</th><th>API Key</th><th>Base URL</th><th>模型</th><th style="width:60px">默认</th><th class="col-actions">操作</th></tr></thead><tbody>';
+    for (const p of data) {
+      html += `<tr>
+        <td><strong>${escapeHtml(p.name)}</strong></td>
+        <td class="col-mono">${escapeHtml(p.api_key)}</td>
+        <td class="col-mono">${escapeHtml(p.base_url)}</td>
+        <td>${escapeHtml(p.model)}</td>
+        <td>${p.is_default ? '<span class="severity-badge severity-p2">默认</span>' : '<span style="color:#9aa0a6">&mdash;</span>'}</td>
+        <td class="col-actions">
+          <button onclick="editProvider(${p.id})">编辑</button>
+          ` + (p.is_default ? '' : `<button onclick="setDefault(${p.id})">设为默认</button>`) + `
+          <button class="act-danger" onclick="deleteProvider(${p.id})">删除</button>
+        </td>
+      </tr>`;
+    }
+    html += "</tbody></table>";
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = `<p style="color:#d93025">加载失败: ${escapeHtml(e.message)}</p>`;
+  }
+}
+
+function openCreateModal() {
+  editingId = null;
+  document.getElementById("modal-title").textContent = "新增供应商";
+  document.getElementById("modal-submit-btn").textContent = "保存";
+  document.getElementById("fld-name").value = "";
+  document.getElementById("fld-api-key").value = "";
+  document.getElementById("fld-api-key").setAttribute("required", "");
+  document.getElementById("fld-api-key").placeholder = "sk-...";
+  document.getElementById("fld-base-url").value = "";
+  document.getElementById("fld-model").value = "";
+  document.getElementById("fld-is-default").checked = false;
+  document.getElementById("modal").style.display = "flex";
+}
+
+async function editProvider(id) {
+  try {
+    const resp = await fetch("/api/providers");
+    const data = await resp.json();
+    const p = data.find(x => x.id === id);
+    if (!p) return;
+    editingId = id;
+    document.getElementById("modal-title").textContent = "编辑供应商";
+    document.getElementById("modal-submit-btn").textContent = "更新";
+    document.getElementById("fld-name").value = p.name;
+    document.getElementById("fld-api-key").value = "";
+    document.getElementById("fld-api-key").placeholder = "留空则不修改";
+    document.getElementById("fld-api-key").removeAttribute("required");
+    document.getElementById("fld-base-url").value = p.base_url;
+    document.getElementById("fld-model").value = p.model;
+    document.getElementById("fld-is-default").checked = p.is_default;
+    document.getElementById("modal").style.display = "flex";
+  } catch (e) {
+    showToast("加载失败: " + e.message);
+  }
+}
+
+function closeModal() {
+  document.getElementById("modal").style.display = "none";
+  editingId = null;
+}
+
+async function submitProvider(e) {
+  e.preventDefault();
+  const name = document.getElementById("fld-name").value.trim();
+  const apiKey = document.getElementById("fld-api-key").value.trim();
+  const baseUrl = document.getElementById("fld-base-url").value.trim();
+  const model = document.getElementById("fld-model").value.trim();
+  const isDefault = document.getElementById("fld-is-default").checked;
+
+  const body = { name, base_url: baseUrl, model, is_default: isDefault };
+  if (!(editingId && !apiKey)) body.api_key = apiKey;
+
+  try {
+    const url = editingId ? `/api/providers/${editingId}` : "/api/providers";
+    const method = editingId ? "PUT" : "POST";
+    const resp = await fetch(url, {
+      method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      showToast(err.detail || "操作失败");
+      return;
+    }
+    closeModal();
+    loadProviders();
+    showToast(editingId ? "已更新" : "已新增");
+  } catch (e) {
+    showToast("请求失败: " + e.message);
+  }
+}
+
+async function setDefault(id) {
+  try {
+    const resp = await fetch(`/api/providers/${id}/default`, { method: "PUT" });
+    if (!resp.ok) { const err = await resp.json(); showToast(err.detail || "操作失败"); return; }
+    loadProviders();
+    showToast("已设为默认");
+  } catch (e) {
+    showToast("请求失败: " + e.message);
+  }
+}
+
+async function deleteProvider(id) {
+  if (!confirm("确定删除该供应商吗？")) return;
+  try {
+    const resp = await fetch(`/api/providers/${id}`, { method: "DELETE" });
+    if (!resp.ok) { const err = await resp.json(); showToast(err.detail || "删除失败"); return; }
+    loadProviders();
+    showToast("已删除");
+  } catch (e) {
+    showToast("请求失败: " + e.message);
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+function showToast(msg) {
+  const toast = document.getElementById("toast");
+  toast.textContent = msg; toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 2500);
+}
+loadProviders();
+</script>
+</body>
+</html>

@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import os
 
 from app.db import init_db
-from app.routes import diagnose, history
+from app.routes import diagnose, history, providers
 
 
 @asynccontextmanager
@@ -24,6 +24,7 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "t
 
 app.include_router(diagnose.router)
 app.include_router(history.router)
+app.include_router(providers.router)
 
 
 @app.get("/")
@@ -34,6 +35,11 @@ async def index(request: Request):
 @app.get("/history")
 async def history_page(request: Request):
     return templates.TemplateResponse("history.html", {"request": request})
+
+
+@app.get("/providers")
+async def providers_page(request: Request):
+    return templates.TemplateResponse("providers.html", {"request": request})
 
 
 @app.get("/api/health")

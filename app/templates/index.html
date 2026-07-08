@@ -15,8 +15,9 @@
       LogDoctor
     </a>
     <nav>
-      <a href="/">诊断</a>
+      <a href="/" class="active">诊断</a>
       <a href="/history">历史记录</a>
+      <a href="/providers">供应商管理</a>
     </nav>
   </div>
 </header>
@@ -25,25 +26,35 @@
 
   <div class="card">
     <h2>日志诊断</h2>
-    <p style="font-size:13px;color:#636e72;margin-bottom:12px;">粘贴服务器日志或报错信息，AI 自动进行根因分析并给出修复方案。</p>
+    <p class="desc">粘贴服务器日志或报错信息，AI 自动进行根因分析并给出修复方案。</p>
     <textarea id="log-input" placeholder="在此粘贴日志内容，或上传 .log / .txt 文件..."></textarea>
     <div class="toolbar">
-      <button class="btn btn-primary" id="diagnose-btn" onclick="diagnoseStream()">
-        开始诊断
-      </button>
-      <select class="hint-select" id="service-hint">
-        <option value="">自动识别</option>
-        <option value="Nginx">Nginx</option>
-        <option value="MySQL">MySQL / MariaDB</option>
-        <option value="Docker">Docker</option>
-        <option value="Linux系统">Linux 系统</option>
-        <option value="Kubernetes">Kubernetes</option>
+      <button class="btn btn-primary" id="diagnose-btn" onclick="diagnoseStream()">开始诊断</button>
+      <div class="toolbar-divider"></div>
+      <div class="toolbar-group">
+        <select class="hint-select" id="service-hint">
+          <option value="">自动识别服务类型</option>
+          <option value="Nginx">Nginx</option>
+          <option value="MySQL">MySQL / MariaDB</option>
+          <option value="Docker">Docker</option>
+          <option value="Linux系统">Linux 系统</option>
+          <option value="Kubernetes">Kubernetes</option>
+        </select>
+      </div>
+      <div class="toolbar-divider"></div>
+      <select class="hint-select" id="provider-select">
+        <option value="">默认供应商</option>
       </select>
-      <label class="file-label btn btn-outline" for="file-input">上传日志文件</label>
+      <a href="/providers" class="provider-link" title="管理供应商">&#9881;</a>
+      <div class="toolbar-divider"></div>
+      <div class="toolbar-group">
+        <button class="btn btn-outline btn-sm" onclick="loadSample('nginx502')">Nginx 502</button>
+        <button class="btn btn-outline btn-sm" onclick="loadSample('mysqlConn')">MySQL 连接</button>
+        <button class="btn btn-outline btn-sm" onclick="loadSample('dockerOOM')">Docker OOM</button>
+      </div>
+      <div class="toolbar-divider"></div>
+      <label class="file-label btn btn-outline btn-sm" for="file-input">上传文件</label>
       <input type="file" id="file-input" accept=".log,.txt,.out">
-      <button class="btn btn-outline" onclick="loadSample('nginx502')">Nginx 502 示例</button>
-      <button class="btn btn-outline" onclick="loadSample('mysqlConn')">MySQL 连接 示例</button>
-      <button class="btn btn-outline" onclick="loadSample('dockerOOM')">Docker OOM 示例</button>
     </div>
   </div>
 
@@ -57,9 +68,7 @@
 </main>
 
 <footer>LogDoctor &mdash; AI 驱动的运维日志诊断工具</footer>
-
 <div id="toast" class="toast"></div>
-
 <script src="/static/app.js"></script>
 </body>
 </html>

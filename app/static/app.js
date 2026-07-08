@@ -1,9 +1,9 @@
 // Severity class mapping
 const SEVERITY_CLASS = {
-    "P0-紧急": "severity-P0: 紧急",
-    "P1-严重": "severity-P1: 严重",
-    "P2-一般": "severity-P2: 一般",
-    "P3-提示": "severity-P3: 提示",
+    "P0-紧急": "severity-p0",
+    "P1-严重": "severity-p1",
+    "P2-一般": "severity-p2",
+    "P3-提示": "severity-p3",
 };
 
 function getSeverityClass(sev) {
@@ -24,7 +24,6 @@ function renderResult(data) {
     const sev = data.severity || data.severity || "";
     const sevClass = getSeverityClass(sev);
 
-    // Render steps as list
     let stepsHtml = "";
     if (data.fix_steps && data.fix_steps.length) {
         stepsHtml = "<ol>" + data.fix_steps.map(s => `<li>${escapeHtml(s)}</li>`).join("") + "</ol>";
@@ -55,19 +54,13 @@ function escapeHtml(str) {
 
 // Simple markdown -> HTML for streaming
 function simpleMdToHtml(text) {
-    // code blocks
     text = text.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-    // inline code
     text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
-    // bold
     text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    // headers
     text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
     text = text.replace(/^## (.+)$/gm, '<h2>$1</h2>');
     text = text.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-    // lists
     text = text.replace(/^- (.+)$/gm, '<li>$1</li>');
-    // newlines
     text = text.replace(/\n\n/g, '</p><p>');
     text = text.replace(/\n/g, '<br>');
     return '<p>' + text + '</p>';
@@ -82,6 +75,8 @@ async function diagnoseStream() {
     }
 
     const serviceHint = document.getElementById("service-hint").value || null;
+    const providerSelect = document.getElementById("provider-select");
+    const providerId = providerSelect.value ? parseInt(providerSelect.value) : null;
     const btn = document.getElementById("diagnose-btn");
     const section = document.getElementById("result-section");
     const container = document.getElementById("result-content");
@@ -98,7 +93,7 @@ async function diagnoseStream() {
         const resp = await fetch("/api/diagnose/stream", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ log_content: logContent, service_hint: serviceHint }),
+            body: JSON.stringify({ log_content: logContent, service_hint: serviceHint, provider_id: providerId }),
         });
 
         const reader = resp.body.getReader();
@@ -132,7 +127,6 @@ async function diagnoseStream() {
             }
         }
 
-        // Try to parse final JSON and render structured result
         try {
             const jsonMatch = fullText.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
@@ -140,7 +134,6 @@ async function diagnoseStream() {
                 renderResult(parsed);
             }
         } catch (e) {
-            // Keep raw markdown render
             container.innerHTML = `<div class="result-body">${simpleMdToHtml(fullText)}</div>`;
         }
     } catch (e) {
@@ -148,6 +141,22 @@ async function diagnoseStream() {
     } finally {
         btn.disabled = false;
         spinner.classList.remove("active");
+    }
+}
+
+// Load providers into dropdown
+async function loadProviders() {
+    const select = document.getElementById("provider-select");
+    try {
+        const resp = await fetch("/api/providers");
+        const data = await resp.json();
+        select.innerHTML = '<option value="">默认供应商</option>';
+        for (const p of data) {
+            const sel = p.is_default ? " selected" : "";
+            select.innerHTML += `<option value="${p.id}"${sel}>${escapeHtml(p.name)} (${escapeHtml(p.model)})</option>`;
+        }
+    } catch (e) {
+        // silently ignore if providers API not available
     }
 }
 
@@ -189,3 +198,6 @@ Jul 08 14:15:02 server dockerd[1234]: container "web-app" (abc123...) has been O
         showToast("已加载示例日志");
     }
 }
+
+// Load providers on page load
+loadProviders();
