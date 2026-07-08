@@ -1,3 +1,5 @@
+"""LLM 调用服务 — 按需创建 AI 客户端、流式/非流式诊断、JSON 解析。"""
+
 import json
 import re
 from functools import lru_cache
@@ -8,12 +10,14 @@ from app.models.schemas import DiagnosisResult
 
 @lru_cache(maxsize=16)
 def _get_client(api_key: str, base_url: str) -> AsyncOpenAI:
-    """Create or retrieve a cached AsyncOpenAI client for the given credentials."""
+    """创建或从缓存中获取 AsyncOpenAI 客户端。
+    使用 LRU 缓存避免每次诊断都创建新连接，同一组 key+url 复用。"""
     return AsyncOpenAI(api_key=api_key, base_url=base_url)
 
 
 def _extract_json(text: str) -> str:
-    """Extract JSON object from LLM response that may have markdown fences."""
+    """从 LLM 响应中提取 JSON 对象。
+    先尝试 ```json ... ``` 代码块，再尝试裸花括号匹配。"""
     m = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
     if m:
         return m.group(1).strip()
@@ -30,13 +34,13 @@ async def diagnose(
     base_url: str = "",
     model: str = "",
 ) -> DiagnosisResult:
-    """Non-streaming diagnosis call."""
+    """非流式诊断：一次调用返回完整的 DiagnosisResult。"""
     client = _get_client(api_key, base_url)
     messages = build_messages(log_content, service_hint)
     resp = await client.chat.completions.create(
         model=model,
         messages=messages,
-        temperature=0.3,
+        temperature=0.3,      # 低温度以获得稳定输出
         max_tokens=2048,
     )
     raw = resp.choices[0].message.content or ""
@@ -51,7 +55,7 @@ async def diagnose_stream(
     base_url: str = "",
     model: str = "",
 ):
-    """Streaming diagnosis call, yields raw text chunks."""
+    """流式诊断：返回异步生成器，逐 chunk 产出 LLM 回复文本。"""
     client = _get_client(api_key, base_url)
     messages = build_messages(log_content, service_hint)
     stream = await client.chat.completions.create(

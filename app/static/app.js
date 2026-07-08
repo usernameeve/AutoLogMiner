@@ -1,4 +1,8 @@
-// Severity class mapping
+/**
+ * LogDoctor 前端逻辑 — SSE 流式诊断渲染、供应商切换、文件上传、示例日志加载。
+ */
+
+// 严重程度 → CSS class 映射
 const SEVERITY_CLASS = {
     "P0-紧急": "severity-p0",
     "P1-严重": "severity-p1",
@@ -6,24 +10,26 @@ const SEVERITY_CLASS = {
     "P3-提示": "severity-p3",
 };
 
+/** 根据严重程度字符串返回对应的 CSS class */
 function getSeverityClass(sev) {
     return SEVERITY_CLASS[sev] || "";
 }
 
-// Scroll to result
+/** 平滑滚动到结果区域 */
 function scrollToResult() {
     document.getElementById("result-section").scrollIntoView({ behavior: "smooth" });
 }
 
-// Parse and render the final result JSON
+/** 解析并渲染结构化诊断结果 JSON */
 function renderResult(data) {
     const section = document.getElementById("result-section");
     const container = document.getElementById("result-content");
     section.classList.add("visible");
 
-    const sev = data.severity || data.severity || "";
+    const sev = data.severity || "";
     const sevClass = getSeverityClass(sev);
 
+    // 渲染修复步骤为有序列表
     let stepsHtml = "";
     if (data.fix_steps && data.fix_steps.length) {
         stepsHtml = "<ol>" + data.fix_steps.map(s => `<li>${escapeHtml(s)}</li>`).join("") + "</ol>";
@@ -46,13 +52,13 @@ function renderResult(data) {
     scrollToResult();
 }
 
-// Escape HTML
+/** HTML 转义，防 XSS */
 function escapeHtml(str) {
     if (!str) return "";
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-// Simple markdown -> HTML for streaming
+/** 简易 Markdown 转 HTML（用于流式渲染中间态） */
 function simpleMdToHtml(text) {
     text = text.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
     text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
@@ -66,7 +72,10 @@ function simpleMdToHtml(text) {
     return '<p>' + text + '</p>';
 }
 
-// Main diagnose function with SSE streaming
+/**
+ * 流式诊断主函数。
+ * 通过 SSE 接收 LLM 实时输出，流结束后尝试解析 JSON 并渲染结构化结果。
+ */
 async function diagnoseStream() {
     const logContent = document.getElementById("log-input").value.trim();
     if (!logContent) {
@@ -122,11 +131,12 @@ async function diagnoseStream() {
                         scrollToResult();
                     }
                 } catch (e) {
-                    // partial JSON, skip
+                    // 部分 JSON 片段，跳过
                 }
             }
         }
 
+        // 流结束后尝试解析完整 JSON 并渲染结构化结果
         try {
             const jsonMatch = fullText.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
@@ -144,7 +154,7 @@ async function diagnoseStream() {
     }
 }
 
-// Load providers into dropdown
+/** 加载供应商列表到下拉框，默认供应商自动选中 */
 async function loadProviders() {
     const select = document.getElementById("provider-select");
     try {
@@ -156,11 +166,12 @@ async function loadProviders() {
             select.innerHTML += `<option value="${p.id}"${sel}>${escapeHtml(p.name)} (${escapeHtml(p.model)})</option>`;
         }
     } catch (e) {
-        // silently ignore if providers API not available
+        // 如果供应商 API 不可用，静默忽略
     }
 }
 
-// File upload handler
+// ======================== 文件上传 ========================
+
 document.getElementById("file-input").addEventListener("change", function(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -172,7 +183,8 @@ document.getElementById("file-input").addEventListener("change", function(e) {
     reader.readAsText(file);
 });
 
-// Toast
+// ======================== Toast 提示 ========================
+
 function showToast(msg) {
     const toast = document.getElementById("toast");
     toast.textContent = msg;
@@ -180,7 +192,9 @@ function showToast(msg) {
     setTimeout(() => toast.classList.remove("show"), 2500);
 }
 
-// Sample logs
+// ======================== 示例日志 ========================
+
+/** 加载预设示例日志到输入框 */
 function loadSample(type) {
     const samples = {
         nginx502: `2024/07/08 14:23:45 [error] 12345#0: *4231 upstream prematurely closed connection while reading response header from upstream, client: 10.0.1.55, server: api.example.com, request: "GET /api/users HTTP/1.1", upstream: "http://127.0.0.1:8080/api/users", host: "api.example.com"
@@ -199,5 +213,5 @@ Jul 08 14:15:02 server dockerd[1234]: container "web-app" (abc123...) has been O
     }
 }
 
-// Load providers on page load
+// 页面加载时获取供应商列表
 loadProviders();
