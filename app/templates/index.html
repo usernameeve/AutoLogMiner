@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LogDoctor - AI 日志诊断工具</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+  <div class="inner">
+    <a href="/" class="logo">
+      <span class="icon">&#9889;</span>
+      LogDoctor
+    </a>
+    <nav>
+      <a href="/">诊断</a>
+      <a href="/history">历史记录</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+
+  <div class="card">
+    <h2>日志诊断</h2>
+    <p style="font-size:13px;color:#636e72;margin-bottom:12px;">粘贴服务器日志或报错信息，AI 自动进行根因分析并给出修复方案。</p>
+    <textarea id="log-input" placeholder="在此粘贴日志内容，或上传 .log / .txt 文件..."></textarea>
+    <div class="toolbar">
+      <button class="btn btn-primary" id="diagnose-btn" onclick="diagnoseStream()">
+        开始诊断
+      </button>
+      <select class="hint-select" id="service-hint">
+        <option value="">自动识别</option>
+        <option value="Nginx">Nginx</option>
+        <option value="MySQL">MySQL / MariaDB</option>
+        <option value="Docker">Docker</option>
+        <option value="Linux系统">Linux 系统</option>
+        <option value="Kubernetes">Kubernetes</option>
+      </select>
+      <label class="file-label btn btn-outline" for="file-input">上传日志文件</label>
+      <input type="file" id="file-input" accept=".log,.txt,.out">
+      <button class="btn btn-outline" onclick="loadSample('nginx502')">Nginx 502 示例</button>
+      <button class="btn btn-outline" onclick="loadSample('mysqlConn')">MySQL 连接 示例</button>
+      <button class="btn btn-outline" onclick="loadSample('dockerOOM')">Docker OOM 示例</button>
+    </div>
+  </div>
+
+  <div id="result-section" class="result-section">
+    <div id="spinner" class="spinner"></div>
+    <div class="result-card">
+      <div id="result-content"></div>
+    </div>
+  </div>
+
+</main>
+
+<footer>LogDoctor &mdash; AI 驱动的运维日志诊断工具</footer>
+
+<div id="toast" class="toast"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
