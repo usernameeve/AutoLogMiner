@@ -29,21 +29,6 @@ class DiagnoseRequest(BaseModel):
     provider_id: int | None = Field(default=None, description="供应商 ID，不传则使用默认供应商")
 
 
-class DiagnosisRecord(BaseModel):
-    """数据库诊断记录序列化。"""
-    id: int
-    timestamp: datetime
-    log_preview: str
-    severity: str
-    summary: str
-    full_result: str  # JSON 字符串，可反序列化为 DiagnosisResult
-
-
-class HistoryResponse(BaseModel):
-    """历史记录列表响应。"""
-    records: list[DiagnosisRecord]
-    total: int
-
 
 class ProviderCreate(BaseModel):
     """新增供应商请求体。"""
@@ -81,3 +66,4 @@ class ProviderResponse(BaseModel):
         if key and len(key) > 8:
             data["api_key"] = key[:4] + "****" + key[-4:]
         return data
+
