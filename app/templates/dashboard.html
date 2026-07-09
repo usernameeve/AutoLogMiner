@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentPlay - AI 运维工作台</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="inner">
+    <a href="/" class="logo">
+      <span class="icon">&#9889;</span>
+      AgentPlay
+    </a>
+    <nav>
+      <a href="/" class="active">仪表盘</a>
+      <a href="/servers">服务器</a>
+      <a href="/diagnose">日志诊断</a>
+      <a href="/timeline">时间线</a>
+      <a href="/knowledge">知识库</a>
+      <a href="/history">历史记录</a>
+      <a href="/providers">供应商</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <div class="dash-summary" id="dash-summary"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <h2 style="margin:0">服务器概览</h2>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline btn-sm" onclick="refreshDashboard()">刷新</button>
+      <button class="btn btn-primary btn-sm" onclick="batchHealthCheck()">全部检测</button>
+    </div>
+  </div>
+  <div class="server-grid" id="server-grid">
+    <div class="spinner active"></div>
+  </div>
+
+  <div id="alerts-section" style="margin-top:32px"></div>
+</main>
+
+<footer>AgentPlay &mdash; AI 驱动的运维工作台</footer>
+<div id="toast" class="toast"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

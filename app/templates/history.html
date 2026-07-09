@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>历史记录 - LogDoctor</title>
+<title>历史记录 - AgentPlay</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -12,12 +12,16 @@
   <div class="inner">
     <a href="/" class="logo">
       <span class="icon">&#9889;</span>
-      LogDoctor
+      AgentPlay
     </a>
     <nav>
-      <a href="/">诊断</a>
+      <a href="/">仪表盘</a>
+      <a href="/servers">服务器</a>
+      <a href="/diagnose">日志诊断</a>
+      <a href="/timeline">时间线</a>
+      <a href="/knowledge">知识库</a>
       <a href="/history" class="active">历史记录</a>
-      <a href="/providers">供应商管理</a>
+      <a href="/providers">供应商</a>
     </nav>
   </div>
 </header>
@@ -33,7 +37,7 @@
 
 </main>
 
-<footer>LogDoctor &mdash; AI 驱动的运维日志诊断工具</footer>
+<footer>AgentPlay &mdash; AI 驱动的运维工作台</footer>
 
 <script>
 async function loadHistory() {
@@ -89,9 +93,10 @@ async function viewDetail(id) {
       <h3>根因分析</h3><p>${escapeHtml(result.root_cause || "")}</p>
       <h3>修复步骤</h3><ol>${stepsHtml || "<li>无</li>"}</ol>
       <h3>预防建议</h3><p>${escapeHtml(result.prevention || "")}</p>
-      <p style="margin-top:20px"><a href="/history">&larr; 返回列表</a></p>
+      <p style="margin-top:20px"><a href="/history">&larr; 返回列表</a> &nbsp; <a href="#" onclick="exportReport(RECORD_ID)" style="color:#1a73e8">导出 Markdown</a></p>
     </div>`;
     document.getElementById("history-content").innerHTML = html;
+      window.RECORD_ID = id;
   } catch (e) {
     alert("加载失败: " + e.message);
   }

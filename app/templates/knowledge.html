@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知识库 - AgentPlay</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="inner">
+    <a href="/" class="logo">
+      <span class="icon">&#9889;</span>
+      AgentPlay
+    </a>
+    <nav>
+      <a href="/">仪表盘</a>
+      <a href="/servers">服务器</a>
+      <a href="/diagnose">日志诊断</a>
+      <a href="/timeline">时间线</a>
+      <a href="/knowledge" class="active">知识库</a>
+      <a href="/history">历史记录</a>
+      <a href="/providers">供应商</a>
+    </nav>
+  </div>
+</header>
+<main class="container">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h2 style="margin:0">运维知识库</h2>
+      <div style="display:flex;gap:8px">
+        <input type="file" id="kn-file-input" accept=".md" style="display:none" onchange="uploadKnowledge()">
+        <button class="btn btn-primary" onclick="document.getElementById('kn-file-input').click()">+ 上传 .md 文件</button>
+      </div>
+    </div>
+    <p class="desc">知识库中的 Markdown 文件会在日志诊断时自动注入到 AI 提示词中，提升诊断准确率。</p>
+    <div id="knowledge-list"><div class="spinner active"></div></div>
+  </div>
+</main>
+<footer>AgentPlay &mdash; AI 驱动的运维工作台</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -19,3 +19,20 @@ KNOWLEDGE_DIR = os.path.join(BASE_DIR, "knowledge")
 
 # 超长日志截断：保留前 N 行和后 N 行
 LOG_MAX_LINES = 200
+
+# SSH 密码加密密钥（Fernet 对称加密，首次启动自动生成）
+SSH_ENCRYPTION_KEY = os.getenv("SSH_ENCRYPTION_KEY", "")
+if not SSH_ENCRYPTION_KEY:
+    from cryptography.fernet import Fernet
+    SSH_ENCRYPTION_KEY = Fernet.generate_key().decode()
+    # 写入 .env 持久化，避免重启后密钥改变导致已存密码无法解密
+    env_path = os.path.join(BASE_DIR, ".env")
+    with open(env_path, "a", encoding="utf-8") as f:
+        f.write(f"\nSSH_ENCRYPTION_KEY={SSH_ENCRYPTION_KEY}\n")
+
+# SSH 连接超时（秒）
+SSH_CONNECT_TIMEOUT = int(os.getenv("SSH_CONNECT_TIMEOUT", "10"))
+SSH_COMMAND_TIMEOUT = int(os.getenv("SSH_COMMAND_TIMEOUT", "30"))
+
+# Alert cooldown in minutes — same server won't re-alert within this window
+ALERT_COOLDOWN_MINUTES = int(os.getenv("ALERT_COOLDOWN_MINUTES", "30"))

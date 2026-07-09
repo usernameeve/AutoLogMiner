@@ -7,14 +7,18 @@ from contextlib import asynccontextmanager
 import os
 
 from app.db import init_db
+from app.services.scheduler import start_scheduler, shutdown_scheduler
 from app.routes import diagnose, history, providers
+from app.routes import servers, dashboard, timeline, knowledge
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用生命周期：启动时初始化数据库。"""
+    """应用生命周期：启动时初始化数据库和调度器。"""
     await init_db()
+    start_scheduler()
     yield
+    shutdown_scheduler()
 
 
 app = FastAPI(title="LogDoctor - AI 日志诊断工具", lifespan=lifespan)
@@ -31,6 +35,10 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "t
 app.include_router(diagnose.router)
 app.include_router(history.router)
 app.include_router(providers.router)
+app.include_router(servers.router)
+app.include_router(dashboard.router)
+app.include_router(timeline.router)
+app.include_router(knowledge.router)
 
 
 # ======================== 页面路由 ========================
@@ -38,7 +46,32 @@ app.include_router(providers.router)
 @app.get("/")
 async def index(request: Request):
     """诊断主页。"""
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse("dashboard.html", {"request": request})
+
+
+@app.get("/diagnose")
+async def diagnose_page(request: Request):
+    return templates.TemplateResponse("diagnose.html", {"request": request})
+
+
+@app.get("/servers")
+async def servers_page(request: Request):
+    return templates.TemplateResponse("servers.html", {"request": request})
+
+
+@app.get("/servers/{server_id}")
+async def server_detail_page(request: Request, server_id: int):
+    return templates.TemplateResponse("server_detail.html", {"request": request, "server_id": server_id})
+
+
+@app.get("/timeline")
+async def timeline_page(request: Request):
+    return templates.TemplateResponse("timeline.html", {"request": request})
+
+
+@app.get("/knowledge")
+async def knowledge_page(request: Request):
+    return templates.TemplateResponse("knowledge.html", {"request": request})
 
 
 @app.get("/history")

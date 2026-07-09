@@ -41,6 +41,73 @@ async def init_db():
             created_at TEXT NOT NULL
         )
     """)
+    # 服务器信息表
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS servers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            host TEXT NOT NULL,
+            port INTEGER NOT NULL DEFAULT 22,
+            username TEXT NOT NULL DEFAULT 'root',
+            auth_type TEXT NOT NULL DEFAULT 'password',
+            ssh_password TEXT NOT NULL DEFAULT '',
+            ssh_key_path TEXT NOT NULL DEFAULT '',
+            schedule_interval INTEGER NOT NULL DEFAULT 0,
+            alert_cpu REAL NOT NULL DEFAULT 0,
+            alert_mem REAL NOT NULL DEFAULT 0,
+            alert_disk REAL NOT NULL DEFAULT 0,
+            webhook_url TEXT NOT NULL DEFAULT '',
+            env TEXT NOT NULL DEFAULT 'production',
+            status TEXT NOT NULL DEFAULT 'unknown',
+            last_checked_at TEXT,
+            created_at TEXT NOT NULL
+        )
+    """)
+    # 健康检查记录表
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS health_checks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_id INTEGER NOT NULL,
+            timestamp TEXT NOT NULL,
+            cpu_percent REAL,
+            mem_percent REAL,
+            disk_percent REAL,
+            load_avg TEXT,
+            service_status TEXT,
+            ai_summary TEXT,
+            raw_output TEXT,
+            FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+        )
+    """)
+    # 健康检查告警记录表
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_id INTEGER NOT NULL,
+            check_id INTEGER,
+            alert_type TEXT NOT NULL,
+            severity TEXT NOT NULL,
+            message TEXT NOT NULL,
+            is_resolved INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            resolved_at TEXT,
+            FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+            FOREIGN KEY (check_id) REFERENCES health_checks(id) ON DELETE SET NULL
+        )
+    """)
+    # 命令执行日志表
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS execution_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_id INTEGER NOT NULL,
+            command TEXT NOT NULL,
+            stdout TEXT NOT NULL DEFAULT '',
+            stderr TEXT NOT NULL DEFAULT '',
+            exit_code INTEGER NOT NULL DEFAULT 0,
+            executed_at TEXT NOT NULL,
+            FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+        )
+    """)
     await db.commit()
 
     # 首次启动：将 .env 配置写入默认供应商
@@ -207,3 +274,274 @@ async def set_default_provider(provider_id: int) -> dict | None:
     row = await cursor.fetchone()
     await db.close()
     return dict(row) if row else None
+
+# ======================== 服务器管理 CRUD ========================
+
+async def list_servers() -> list[dict]:
+    db = await get_db()
+    cursor = await db.execute(
+        "SELECT id, name, host, port, username, auth_type, env, status, last_checked_at, schedule_interval, alert_cpu, alert_mem, alert_disk, webhook_url, created_at FROM servers ORDER BY created_at DESC"
+    )
+    rows = await cursor.fetchall()
+    await db.close()
+    return [dict(r) for r in rows]
+
+
+async def get_server(server_id: int) -> dict | None:
+    db = await get_db()
+    cursor = await db.execute("SELECT * FROM servers WHERE id = ?", (server_id,))
+    row = await cursor.fetchone()
+    await db.close()
+    return dict(row) if row else None
+
+
+async def create_server(
+    name: str, host: str, port: int, username: str,
+    auth_type: str, ssh_password: str, ssh_key_path: str, env: str,
+) -> dict | None:
+    db = await get_db()
+    now = datetime.now().isoformat()
+    cursor = await db.execute(
+        """INSERT INTO servers (name, host, port, username, auth_type, ssh_password, ssh_key_path, env, status, schedule_interval, alert_cpu, alert_mem, alert_disk, webhook_url, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'unknown', 0, 0, 0, 0, '', ?)""",
+        (name, host, port, username, auth_type, ssh_password, ssh_key_path, env, now),
+    )
+    await db.commit()
+    new_id = cursor.lastrowid
+    if new_id is None:
+        await db.close()
+        return None
+    cursor = await db.execute("SELECT id, name, host, port, username, auth_type, env, status, last_checked_at, schedule_interval, alert_cpu, alert_mem, alert_disk, webhook_url, created_at FROM servers WHERE id = ?", (new_id,))
+    row = await cursor.fetchone()
+    await db.close()
+    return dict(row) if row else None
+
+
+async def update_server(server_id: int, **kwargs) -> dict | None:
+    db = await get_db()
+    cursor = await db.execute("SELECT * FROM servers WHERE id = ?", (server_id,))
+    existing = await cursor.fetchone()
+    if not existing:
+        await db.close()
+        return None
+    existing = dict(existing)
+
+    name = kwargs.get("name", existing["name"])
+    host = kwargs.get("host", existing["host"])
+    port = kwargs.get("port", existing["port"])
+    username = kwargs.get("username", existing["username"])
+    auth_type = kwargs.get("auth_type", existing["auth_type"])
+    ssh_password = kwargs.get("ssh_password", existing["ssh_password"])
+    ssh_key_path = kwargs.get("ssh_key_path", existing["ssh_key_path"])
+    env = kwargs.get("env", existing["env"])
+    schedule_interval = kwargs.get("schedule_interval", existing.get("schedule_interval", 0))
+    alert_cpu = kwargs.get("alert_cpu", existing.get("alert_cpu", 0))
+    alert_mem = kwargs.get("alert_mem", existing.get("alert_mem", 0))
+    alert_disk = kwargs.get("alert_disk", existing.get("alert_disk", 0))
+    webhook_url = kwargs.get("webhook_url", existing.get("webhook_url", ""))
+
+    await db.execute(
+        """UPDATE servers SET name=?, host=?, port=?, username=?, auth_type=?, ssh_password=?, ssh_key_path=?, env=?, schedule_interval=?, alert_cpu=?, alert_mem=?, alert_disk=?, webhook_url=?
+           WHERE id=?""",
+        (name, host, port, username, auth_type, ssh_password, ssh_key_path, env, schedule_interval, alert_cpu, alert_mem, alert_disk, webhook_url, server_id),
+    )
+    await db.commit()
+    cursor = await db.execute("SELECT id, name, host, port, username, auth_type, env, status, last_checked_at, schedule_interval, alert_cpu, alert_mem, alert_disk, webhook_url, created_at FROM servers WHERE id = ?", (server_id,))
+    row = await cursor.fetchone()
+    await db.close()
+    return dict(row) if row else None
+
+
+async def delete_server(server_id: int) -> bool:
+    db = await get_db()
+    cursor = await db.execute("DELETE FROM servers WHERE id = ?", (server_id,))
+    await db.commit()
+    affected = cursor.rowcount
+    await db.close()
+    return affected > 0
+
+
+async def update_server_status(server_id: int, status: str) -> None:
+    db = await get_db()
+    await db.execute(
+        "UPDATE servers SET status=?, last_checked_at=? WHERE id=?",
+        (status, datetime.now().isoformat(), server_id),
+    )
+    await db.commit()
+    await db.close()
+
+
+# ======================== 健康检查 CRUD ========================
+
+async def save_health_check(
+    server_id: int, metrics: dict, ai_summary: str, raw_output: str,
+) -> dict | None:
+    db = await get_db()
+    now = datetime.now().isoformat()
+    cursor = await db.execute(
+        """INSERT INTO health_checks (server_id, timestamp, cpu_percent, mem_percent, disk_percent,
+           load_avg, service_status, ai_summary, raw_output)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            server_id, now,
+            metrics.get("cpu_percent"),
+            metrics.get("mem_percent"),
+            metrics.get("disk_percent"),
+            metrics.get("load_avg"),
+            json.dumps(metrics.get("service_status", {}), ensure_ascii=False),
+            ai_summary,
+            raw_output,
+        ),
+    )
+    await db.commit()
+    new_id = cursor.lastrowid
+    if new_id is None:
+        await db.close()
+        return None
+    cursor = await db.execute("SELECT * FROM health_checks WHERE id = ?", (new_id,))
+    row = await cursor.fetchone()
+    await db.close()
+    return dict(row) if row else None
+
+
+async def list_health_checks(server_id: int, limit: int = 20) -> list[dict]:
+    db = await get_db()
+    cursor = await db.execute(
+        "SELECT * FROM health_checks WHERE server_id = ? ORDER BY timestamp DESC LIMIT ?",
+        (server_id, limit),
+    )
+    rows = await cursor.fetchall()
+    await db.close()
+    return [dict(r) for r in rows]
+
+
+async def get_latest_health_check(server_id: int) -> dict | None:
+    db = await get_db()
+    cursor = await db.execute(
+        "SELECT * FROM health_checks WHERE server_id = ? ORDER BY timestamp DESC LIMIT 1",
+        (server_id,),
+    )
+    row = await cursor.fetchone()
+    await db.close()
+    return dict(row) if row else None
+
+# ======================== Alert CRUD ========================
+
+async def save_alert(server_id: int, check_id: int | None, alert_type: str, severity: str, message: str) -> dict | None:
+    """保存一条告警记录到 alerts 表。"""
+    db = await get_db()
+    now = datetime.now().isoformat()
+    cursor = await db.execute(
+        "INSERT INTO alerts (server_id, check_id, alert_type, severity, message, is_resolved, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)",
+        (server_id, check_id, alert_type, severity, message, now),
+    )
+    await db.commit()
+    new_id = cursor.lastrowid
+    if new_id is None:
+        await db.close()
+        return None
+    cursor = await db.execute("SELECT * FROM alerts WHERE id = ?", (new_id,))
+    row = await cursor.fetchone()
+    await db.close()
+    return dict(row) if row else None
+
+
+async def get_recent_alert(server_id: int, alert_type: str, minutes: int = 30) -> dict | None:
+    """查询指定时间窗口内未恢复的同类型告警，用于冷却期判断。"""
+    db = await get_db()
+    threshold = (datetime.now() - __import__("datetime").timedelta(minutes=minutes)).isoformat()
+    cursor = await db.execute(
+        "SELECT * FROM alerts WHERE server_id = ? AND alert_type = ? AND is_resolved = 0 AND created_at > ? ORDER BY created_at DESC LIMIT 1",
+        (server_id, alert_type, threshold),
+    )
+    row = await cursor.fetchone()
+    await db.close()
+    return dict(row) if row else None
+
+
+async def list_alerts(limit: int = 50) -> list[dict]:
+    """获取最近 N 条告警记录，附带服务器名称。"""
+    db = await get_db()
+    cursor = await db.execute(
+        "SELECT a.*, s.name as server_name FROM alerts a LEFT JOIN servers s ON a.server_id = s.id ORDER BY a.created_at DESC LIMIT ?",
+        (limit,),
+    )
+    rows = await cursor.fetchall()
+    await db.close()
+    return [dict(r) for r in rows]
+
+
+async def get_servers_with_schedule() -> list[dict]:
+    """查询所有启用了定时检查（schedule_interval > 0）且非离线的服务器。"""
+    db = await get_db()
+    cursor = await db.execute(
+        "SELECT * FROM servers WHERE schedule_interval > 0 AND status != 'offline'"
+    )
+    rows = await cursor.fetchall()
+    await db.close()
+    return [dict(r) for r in rows]
+
+# ======================== Execution Logs ========================
+
+async def save_execution(server_id: int, command: str, stdout: str, stderr: str, exit_code: int) -> dict | None:
+    """保存命令执行记录到 execution_logs 表，用于操作审计。"""
+    db = await get_db()
+    now = datetime.now().isoformat()
+    cursor = await db.execute(
+        "INSERT INTO execution_logs (server_id, command, stdout, stderr, exit_code, executed_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (server_id, command, stdout, stderr, exit_code, now),
+    )
+    await db.commit()
+    new_id = cursor.lastrowid
+    if new_id is None:
+        await db.close()
+        return None
+    cursor = await db.execute("SELECT * FROM execution_logs WHERE id = ?", (new_id,))
+    row = await cursor.fetchone()
+    await db.close()
+    return dict(row) if row else None
+
+
+# ======================== Timeline ========================
+
+async def get_timeline(limit: int = 50) -> list[dict]:
+    """聚合查询 diagnoses / health_checks / alerts / execution_logs 四张表，按时间倒序合并返回最近 N 条事件。"""
+    db = await get_db()
+    events = []
+
+    cursor = await db.execute(
+        "SELECT d.id, d.timestamp, d.summary, d.severity, 'diagnosis' as event_type, '' as server_name FROM diagnoses d ORDER BY d.timestamp DESC LIMIT ?",
+        (limit // 4,),
+    )
+    for r in await cursor.fetchall():
+        events.append({"id": r["id"], "timestamp": r["timestamp"], "summary": r["summary"], "severity": r["severity"], "type": "diagnosis", "server": ""})
+
+    cursor = await db.execute(
+        "SELECT h.id, h.timestamp, h.ai_summary, h.cpu_percent, h.mem_percent, h.disk_percent, s.name as server_name FROM health_checks h LEFT JOIN servers s ON h.server_id = s.id ORDER BY h.timestamp DESC LIMIT ?",
+        (limit // 4,),
+    )
+    for r in await cursor.fetchall():
+        summary = f"CPU {r['cpu_percent']}% / MEM {r['mem_percent']}% / DISK {r['disk_percent']}%"
+        if r["ai_summary"]:
+            summary = r["ai_summary"][:100]
+        events.append({"id": r["id"], "timestamp": r["timestamp"], "summary": summary, "severity": "", "type": "health", "server": r["server_name"] or ""})
+
+    cursor = await db.execute(
+        "SELECT a.id, a.created_at as timestamp, a.message, a.severity, s.name as server_name FROM alerts a LEFT JOIN servers s ON a.server_id = s.id ORDER BY a.created_at DESC LIMIT ?",
+        (limit // 4,),
+    )
+    for r in await cursor.fetchall():
+        events.append({"id": r["id"], "timestamp": r["timestamp"], "summary": r["message"], "severity": r["severity"], "type": "alert", "server": r["server_name"] or ""})
+
+    cursor = await db.execute(
+        "SELECT e.id, e.executed_at as timestamp, e.command, e.exit_code, s.name as server_name FROM execution_logs e LEFT JOIN servers s ON e.server_id = s.id ORDER BY e.executed_at DESC LIMIT ?",
+        (limit // 4,),
+    )
+    for r in await cursor.fetchall():
+        code = "OK" if r["exit_code"] == 0 else f"exit={r['exit_code']}"
+        summary = f"$ {r['command'][:80]}  [{code}]"
+        events.append({"id": r["id"], "timestamp": r["timestamp"], "summary": summary, "severity": "", "type": "execution", "server": r["server_name"] or ""})
+
+    await db.close()
+    events.sort(key=lambda e: e["timestamp"], reverse=True)
+    return events[:limit]

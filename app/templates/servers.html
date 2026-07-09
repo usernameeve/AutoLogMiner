@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>服务器管理 - AgentPlay</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+  <div class="inner">
+    <a href="/" class="logo">
+      <span class="icon">&#9889;</span>
+      AgentPlay
+    </a>
+    <nav>
+      <a href="/">仪表盘</a>
+      <a href="/servers" class="active">服务器</a>
+      <a href="/diagnose">日志诊断</a>
+      <a href="/timeline">时间线</a>
+      <a href="/knowledge">知识库</a>
+      <a href="/history">历史记录</a>
+      <a href="/providers">供应商</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h2 style="margin:0">服务器列表</h2>
+      <button class="btn btn-primary" onclick="showAddServerModal()">+ 添加服务器</button>
+    </div>
+    <div id="server-list-content">
+      <div class="spinner active"></div>
+    </div>
+  </div>
+</main>
+
+<!-- Add/Edit Server Modal -->
+<div class="modal-overlay" id="server-modal" style="display:none">
+  <div class="modal">
+    <h3 id="modal-title">添加服务器</h3>
+    <form id="server-form" onsubmit="saveServer(event)">
+      <input type="hidden" id="edit-server-id">
+      <label>名称</label>
+      <input type="text" id="srv-name" required placeholder="如: 生产-Web-01">
+      <label>主机地址</label>
+      <input type="text" id="srv-host" required placeholder="192.168.1.100">
+      <label>SSH 端口</label>
+      <input type="number" id="srv-port" value="22" required>
+      <label>用户名</label>
+      <input type="text" id="srv-username" value="root" required>
+      <label>认证方式</label>
+      <select id="srv-auth">
+        <option value="password">密码</option>
+        <option value="key">密钥文件</option>
+      </select>
+      <div id="pw-group">
+        <label>SSH 密码</label>
+        <input type="password" id="srv-password" placeholder="留空不修改">
+      </div>
+      <div id="key-group" style="display:none">
+        <label>密钥文件路径</label>
+        <input type="text" id="srv-keypath" placeholder="/home/user/.ssh/id_rsa">
+      </div>
+      <label>环境</label>
+      <select id="srv-env">
+        <option value="production">production</option>
+        <option value="staging">staging</option>
+        <option value="development">development</option>
+      </select>
+      <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">取消</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<footer>AgentPlay &mdash; AI 驱动的运维工作台</footer>
+<div id="toast" class="toast"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

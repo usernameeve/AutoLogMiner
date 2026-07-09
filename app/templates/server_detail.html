@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>服务器详情 - AgentPlay</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="inner">
+    <a href="/" class="logo">
+      <span class="icon">&#9889;</span>
+      AgentPlay
+    </a>
+    <nav>
+      <a href="/">仪表盘</a>
+      <a href="/servers" class="active">服务器</a>
+      <a href="/diagnose">日志诊断</a>
+      <a href="/history">历史记录</a>
+      <a href="/timeline">时间线</a>
+      <a href="/knowledge">知识库</a>
+      <a href="/history">历史记录</a>
+      <a href="/providers">供应商</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <div style="margin-bottom:16px"><a href="/servers">&larr; 返回服务器列表</a></div>
+
+  <div class="card" id="server-info-card">
+    <div class="spinner active"></div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <h2 style="margin:0">健康检查</h2>
+      <button class="btn btn-primary" id="btn-health-check" onclick="runHealthCheck()">执行健康检查</button>
+    </div>
+    <div id="health-result">
+      <p style="color:#9aa0a6">点击上方按钮执行健康检查</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <h2 style="margin-bottom:12px">24 小时趋势</h2>
+    <div class="chart-container">
+      <canvas id="trend-chart"></canvas>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <h2 style="margin-bottom:12px">调度与告警</h2>
+    <div class="settings-grid">
+      <div class="setting-group">
+        <label>定时检查间隔（分钟）</label>
+        <input type="number" id="sched-interval" value="0" min="0" placeholder="0 = 关闭">
+        <span class="setting-hint">设为 5 表示每 5 分钟自动检查一次</span>
+      </div>
+      <div class="setting-group">
+        <label>CPU 告警阈值 (%)</label>
+        <input type="number" id="alert-cpu" value="0" min="0" max="100" placeholder="0 = 关闭">
+      </div>
+      <div class="setting-group">
+        <label>内存告警阈值 (%)</label>
+        <input type="number" id="alert-mem" value="0" min="0" max="100" placeholder="0 = 关闭">
+      </div>
+      <div class="setting-group">
+        <label>磁盘告警阈值 (%)</label>
+        <input type="number" id="alert-disk" value="0" min="0" max="100" placeholder="0 = 关闭">
+      </div>
+      <div class="setting-group" style="grid-column:span 2">
+        <label>Webhook URL（钉钉/飞书）</label>
+        <input type="text" id="webhook-url" placeholder="https://oapi.dingtalk.com/robot/send?access_token=...">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="saveSettings()" style="margin-top:12px">保存设置</button>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <h2>远程日志 &amp; 诊断</h2>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+      <select id="log-type" onchange="toggleLogInput()">
+        <option value="journalctl">journalctl (系统日志)</option>
+        <option value="file">指定文件路径</option>
+      </select>
+      <input type="text" id="log-unit" placeholder="服务名 (如 nginx)" style="width:140px">
+      <input type="text" id="log-path" placeholder="/var/log/nginx/error.log" style="display:none;width:200px">
+      <input type="number" id="log-lines" value="200" style="width:80px" title="行数">
+      <button class="btn btn-outline" onclick="fetchLog()">获取日志</button>
+      <button class="btn btn-primary" onclick="inlineDiagnose()" id="btn-inline-dx">AI 诊断</button>
+    </div>
+    <pre id="log-content" style="max-height:400px;overflow:auto;background:#1e1e1e;color:#d4d4d4;padding:12px;border-radius:6px;font-size:12px;white-space:pre-wrap;word-break:break-all">点击上方按钮获取日志</pre>
+    <div id="dx-result" style="margin-top:12px"></div>
+  </div>
+</main>
+
+<footer>AgentPlay &mdash; AI 驱动的运维工作台</footer>
+<div id="toast" class="toast"></div>
+<script>
+const SERVER_ID = {{ server_id }};
+</script>
+<script src="/static/app.js"></script>
+</body>
+</html>
