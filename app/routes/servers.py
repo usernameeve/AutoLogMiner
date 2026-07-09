@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException
 from app.services.ssh import encrypt_password, check_connectivity, tail_log, fetch_journalctl
 from app.services.monitor import collect_metrics, analyze_health, analyze_log
-from app.services.ssh import exec_command as ssh_exec, decrypt_password
+from app.services.ssh import exec_command as ssh_exec
 from app.services.alerting import check_and_alert
 from app import db
 

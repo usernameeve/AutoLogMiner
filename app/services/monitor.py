@@ -129,7 +129,6 @@ Output format: 1. Overall health assessment. 2. Key risk if any. 3. Recommended 
     resp = await client.chat.completions.create(
         model=client.model,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": analysis_prompt},
         ],
         temperature=0.3,

@@ -3,7 +3,7 @@
 import os
 import aiosqlite
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.config import DB_PATH
 
 
@@ -449,7 +449,7 @@ async def save_alert(server_id: int, check_id: int | None, alert_type: str, seve
 async def get_recent_alert(server_id: int, alert_type: str, minutes: int = 30) -> dict | None:
     """查询指定时间窗口内未恢复的同类型告警，用于冷却期判断。"""
     db = await get_db()
-    threshold = (datetime.now() - __import__("datetime").timedelta(minutes=minutes)).isoformat()
+    threshold = (datetime.now() - timedelta(minutes=minutes)).isoformat()
     cursor = await db.execute(
         "SELECT * FROM alerts WHERE server_id = ? AND alert_type = ? AND is_resolved = 0 AND created_at > ? ORDER BY created_at DESC LIMIT 1",
         (server_id, alert_type, threshold),
