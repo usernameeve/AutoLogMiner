@@ -1,5 +1,6 @@
 """调度服务 — 基于 APScheduler 的定时健康检查。每分钟扫描一次，对设置了定时间隔的服务器自动执行检查。"""
 
+import asyncio
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.services.monitor import collect_metrics, analyze_health
 from app.services.alerting import check_and_alert
@@ -26,11 +27,14 @@ async def _run_scheduled_check(server_id: int, host: str, port: int, username: s
 async def _scheduled_job():
     """定时任务入口：查询所有启用了定时检查的在线服务器，逐台执行健康检查。"""
     servers = await db.get_servers_with_schedule()
-    for srv in servers:
-        await _run_scheduled_check(
-            srv["id"], srv["host"], srv["port"], srv["username"],
-            srv["auth_type"], srv["ssh_password"], srv["ssh_key_path"],
-        )
+    if servers:
+        await asyncio.gather(*[
+            _run_scheduled_check(
+                s["id"], s["host"], s["port"], s["username"],
+                s["auth_type"], s["ssh_password"], s["ssh_key_path"],
+            )
+            for s in servers
+        ])
 
 
 def start_scheduler():
