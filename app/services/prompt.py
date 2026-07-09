@@ -2,6 +2,7 @@
 
 import os
 from app.config import KNOWLEDGE_DIR, LOG_MAX_LINES
+from app.services.log_filter import smart_filter_log
 
 # 系统提示词：角色设定 + 输出格式约束 + 严重程度分级标准
 SYSTEM_PROMPT = """你是一位资深的运维工程师和故障诊断专家，拥有10年以上的生产环境排障经验。
@@ -63,7 +64,7 @@ def build_messages(log_content: str, service_hint: str | None = None) -> list[di
 
     # 组装用户消息：日志内容 + 可选的服务提示
     user_text = "请分析以下日志并给出诊断结果：\n\n```\n"
-    user_text += truncate_log(log_content)
+    user_text += smart_filter_log(log_content)
     user_text += "\n```"
     if service_hint:
         user_text += f"\n\n（提示：可能涉及 {service_hint} 相关服务）"

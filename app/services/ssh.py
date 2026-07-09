@@ -81,7 +81,7 @@ async def tail_log(
     """拉取远程日志文件的最后 N 行。"""
     stdout, stderr, code = await exec_command(
         host, port, username, auth_type, password, key_path,
-        f"tail -n {lines} {log_path} 2>/dev/null || echo ''",
+        f"tail -q -n {lines} {log_path} 2>/dev/null || echo ''",
     )
     return stdout if code == 0 else stderr
 
