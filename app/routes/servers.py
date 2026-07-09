@@ -1,5 +1,6 @@
 """Server management API — CRUD for servers, groups, health checks, and remote logs."""
 
+from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from app.services.ssh import encrypt_password, check_connectivity, tail_log, fetch_journalctl
 from app.services.monitor import collect_metrics, analyze_health, analyze_log
@@ -222,7 +223,6 @@ async def health_trend(server_id: int, hours: int = 24):
 @router.put("/alerts/{alert_id}/resolve")
 async def resolve_alert(alert_id: int):
     """Mark an alert as resolved."""
-    from datetime import datetime
     db_conn = await db.get_db()
     await db_conn.execute(
         "UPDATE alerts SET is_resolved = 1, resolved_at = ? WHERE id = ?",
