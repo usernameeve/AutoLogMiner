@@ -8,6 +8,8 @@ from app.services.ssh import exec_command as ssh_exec
 from app.services.alerting import check_and_alert
 from app import db
 
+_DANGEROUS_COMMANDS = ["rm -rf /", "mkfs.", "dd if=", "> /dev/sd", "shutdown", "reboot", "halt", "poweroff", ":(){ :|:& };:"]
+
 router = APIRouter(prefix="/api", tags=["servers"])
 
 
@@ -114,7 +116,10 @@ async def run_health_check(server_id: int, provider_id: int | None = None):
         srv["auth_type"], srv["ssh_password"], srv["ssh_key_path"],
     )
 
-    ai_summary = await analyze_health(metrics, provider_id)
+    try:
+        ai_summary = await analyze_health(metrics, provider_id)
+    except Exception:
+        ai_summary = ""
 
     result = await db.save_health_check(server_id, metrics, ai_summary, raw)
     await db.update_server_status(server_id, "online")
@@ -178,9 +183,14 @@ async def execute_command(server_id: int, data: dict):
     srv = await db.get_server(server_id)
     if not srv:
         raise HTTPException(status_code=404, detail="Server not found")
-    command = data.get("command", "")
+    command = data.get("command", "").strip()
     if not command:
         raise HTTPException(status_code=400, detail="Missing command")
+    # Block dangerous commands
+    cmd_lower = command.lower()
+    for d in _DANGEROUS_COMMANDS:
+        if d in cmd_lower:
+            raise HTTPException(status_code=400, detail=f"Dangerous command blocked: {d}")
     stdout, stderr, code = await ssh_exec(
         srv["host"], srv["port"], srv["username"],
         srv["auth_type"], srv["ssh_password"], srv["ssh_key_path"],
@@ -232,6 +242,29 @@ async def resolve_alert(alert_id: int):
     await db_conn.close()
     return {"status": "resolved"}
 
+
+
+
+@router.get("/servers/export/config")
+async def export_server_config():
+    servers = await db.list_servers()
+    lines = []
+    for s in servers:
+        lines.append(f"[{s['name']}]")
+        lines.append(f"host = {s['host']}")
+        lines.append(f"port = {s['port']}")
+        lines.append(f"username = {s['username']}")
+        lines.append(f"auth_type = {s['auth_type']}")
+        lines.append(f"env = {s['env']}")
+        lines.append(f"schedule_interval = {s.get('schedule_interval', 0)}")
+        lines.append(f"alert_cpu = {s.get('alert_cpu', 0)}")
+        lines.append(f"alert_mem = {s.get('alert_mem', 0)}")
+        lines.append(f"alert_disk = {s.get('alert_disk', 0)}")
+        lines.append(f"webhook_url = {s.get('webhook_url', '')}")
+        lines.append("")
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse("\n".join(lines), media_type="text/plain",
+        headers={"Content-Disposition": "attachment; filename=servers.conf"})
 
 @router.get("/alerts")
 async def list_alerts(limit: int = 50):

@@ -37,3 +37,28 @@ async def get_dashboard():
         })
 
     return {"summary": summary, "servers": server_list}
+
+
+
+@router.get("/dashboard/compare")
+async def compare_servers(ids: str = ""):
+    """Return latest metrics for selected server IDs for side-by-side comparison."""
+    if not ids:
+        return []
+    id_list = [int(x) for x in ids.split(",") if x.strip().isdigit()]
+    result = []
+    for sid in id_list:
+        srv = await db.get_server(sid)
+        if not srv:
+            continue
+        latest = await db.get_latest_health_check(sid)
+        result.append({
+            "id": sid,
+            "name": srv["name"],
+            "cpu": latest["cpu_percent"] if latest else None,
+            "mem": latest["mem_percent"] if latest else None,
+            "disk": latest["disk_percent"] if latest else None,
+            "load": latest["load_avg"] if latest else None,
+            "timestamp": latest["timestamp"] if latest else None,
+        })
+    return result

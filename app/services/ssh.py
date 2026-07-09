@@ -1,5 +1,6 @@
 """SSH 服务 — 基于 asyncssh 的远程连接管理、命令执行、凭证加解密、日志拉取。"""
 
+import asyncio
 import asyncssh
 from cryptography.fernet import Fernet
 from app.config import SSH_ENCRYPTION_KEY, SSH_CONNECT_TIMEOUT, SSH_COMMAND_TIMEOUT
@@ -25,8 +26,21 @@ async def _connect(
     host: str, port: int, username: str,
     auth_type: str, password: str, key_path: str,
 ) -> asyncssh.SSHClientConnection:
-    """建立 SSH 连接，支持密码和密钥两种认证方式。
-    known_hosts=None 跳过主机密钥验证（适用于内网可信环境）。"""
+    """SSH connection with 3 retries, exponential backoff 1s/2s/4s."""
+    for attempt in range(3):
+        try:
+            return await _connect_once(host, port, username, auth_type, password, key_path)
+        except Exception:
+            if attempt == 2:
+                raise
+            await asyncio.sleep(2 ** attempt)
+
+
+async def _connect_once(
+    host: str, port: int, username: str,
+    auth_type: str, password: str, key_path: str,
+) -> asyncssh.SSHClientConnection:
+    """Single SSH connection attempt, no retry."""
     if auth_type == "key" and key_path:
         conn = await asyncssh.connect(
             host, port=port, username=username,

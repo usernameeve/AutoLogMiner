@@ -15,7 +15,10 @@ async def _run_scheduled_check(server_id: int, host: str, port: int, username: s
     连接失败时标记为 offline。"""
     try:
         metrics, raw = await collect_metrics(host, port, username, auth_type, password, key_path)
-        ai_summary = await analyze_health(metrics)
+        try:
+            ai_summary = await analyze_health(metrics)
+        except Exception:
+            ai_summary = ""
         result = await db.save_health_check(server_id, metrics, ai_summary, raw)
         await db.update_server_status(server_id, "online")
         if result:
@@ -37,9 +40,15 @@ async def _scheduled_job():
         ])
 
 
+async def _cleanup_job():
+    from app import db
+    await db.cleanup_old_data()
+
+
 def start_scheduler():
     """启动调度器，注册每分钟执行一次的健康检查任务。"""
     scheduler.add_job(_scheduled_job, "interval", minutes=1, id="health_check")
+    scheduler.add_job(_cleanup_job, "interval", hours=24, id="data_cleanup")
     scheduler.start()
 
 

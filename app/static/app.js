@@ -717,3 +717,16 @@ async function resolveAlert(id) {
   if (path === "/timeline") { loadTimeline(); return; }
   if (path === "/knowledge") { loadKnowledge(); return; }
 })();
+
+
+// ======================== Auto Refresh ========================
+
+let _autoRefreshTimer = null;
+function toggleAutoRefresh() {
+  if (document.getElementById("auto-refresh").checked) {
+    _autoRefreshTimer = setInterval(refreshDashboard, 30000);
+  } else {
+    clearInterval(_autoRefreshTimer);
+    _autoRefreshTimer = null;
+  }
+}

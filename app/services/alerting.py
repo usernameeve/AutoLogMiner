@@ -82,8 +82,9 @@ async def _send_webhook(url: str, server_name: str, metric: str, current: float,
         )
         try:
             urllib.request.urlopen(req, timeout=10)
-        except Exception:
-            pass
+        except Exception as e:
+            import sys
+            print(f"[AgentPlay] Webhook failed: {str(e)[:100]}", file=sys.stderr)
 
     await asyncio.to_thread(_post)
 

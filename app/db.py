@@ -545,3 +545,16 @@ async def get_timeline(limit: int = 50) -> list[dict]:
     await db.close()
     events.sort(key=lambda e: e["timestamp"], reverse=True)
     return events[:limit]
+
+
+# ======================== Data Cleanup ========================
+
+async def cleanup_old_data(retention_days: int = 30):
+    """Delete health_checks and execution_logs older than retention_days."""
+    from datetime import timedelta
+    cutoff = (datetime.now() - timedelta(days=retention_days)).isoformat()
+    db = await get_db()
+    await db.execute("DELETE FROM health_checks WHERE timestamp < ?", (cutoff,))
+    await db.execute("DELETE FROM execution_logs WHERE executed_at < ?", (cutoff,))
+    await db.commit()
+    await db.close()
