@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>日志诊断 - AgentPlay</title>
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -19,6 +19,7 @@
       <a href="/">仪表盘</a>
       <a href="/servers">服务器</a>
       <a href="/diagnose" class="active">日志诊断</a>
+      <a href="/alerts">告警</a>
       <a href="/timeline">时间线</a>
       <a href="/knowledge">知识库</a>
       <a href="/history">历史记录</a>
@@ -31,35 +32,35 @@
 
   <div class="card">
     <h2>日志诊断</h2>
-    <p class="desc">粘贴服务器日志或报错信息，AI 自动进行根因分析并给出修复方案。</p>
-    <textarea id="log-input" placeholder="在此粘贴日志内容，或上传 .log / .txt 文件..."></textarea>
-    <div class="toolbar">
-      <button class="btn btn-primary" id="diagnose-btn" onclick="diagnoseStream()">开始诊断</button>
-      <div class="toolbar-divider"></div>
-      <div class="toolbar-group">
-        <select class="hint-select" id="service-hint">
-          <option value="">自动识别服务类型</option>
-          <option value="Nginx">Nginx</option>
-          <option value="MySQL">MySQL / MariaDB</option>
-          <option value="Docker">Docker</option>
-          <option value="Linux系统">Linux 系统</option>
-          <option value="Kubernetes">Kubernetes</option>
-        </select>
-      </div>
-      <div class="toolbar-divider"></div>
-      <select class="hint-select" id="provider-select">
-        <option value="">默认供应商</option>
-      </select>
-      <a href="/providers" class="provider-link" title="管理供应商">&#9881;</a>
-      <div class="toolbar-divider"></div>
-      <div class="toolbar-group">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <p class="desc" style="margin-bottom:0">粘贴日志内容或使用示例快速体验：</p>
+      <div style="display:flex;gap:6px">
         <button class="btn btn-outline btn-sm" onclick="loadSample('nginx502')">Nginx 502</button>
         <button class="btn btn-outline btn-sm" onclick="loadSample('mysqlConn')">MySQL 连接</button>
         <button class="btn btn-outline btn-sm" onclick="loadSample('dockerOOM')">Docker OOM</button>
       </div>
-      <div class="toolbar-divider"></div>
-      <label class="file-label btn btn-outline btn-sm" for="file-input">上传文件</label>
-      <input type="file" id="file-input" accept=".log,.txt,.out">
+    </div>
+    
+    <div id="file-chips" class="file-chips"></div>
+    <div class="log-input-wrap">
+      <textarea id="log-input" placeholder="在此粘贴日志内容..."></textarea>
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-primary" id="diagnose-btn" onclick="diagnoseStream()">开始诊断</button>
+      <select class="hint-select" id="service-hint">
+        <option value="">自动识别服务类型</option>
+        <option value="Nginx">Nginx</option>
+        <option value="MySQL">MySQL / MariaDB</option>
+        <option value="Docker">Docker</option>
+        <option value="Linux系统">Linux 系统</option>
+        <option value="Kubernetes">Kubernetes</option>
+      </select>
+      <select class="hint-select" id="provider-select">
+        <option value="">默认供应商</option>
+      </select>
+      <a href="/providers" class="provider-link" title="管理供应商">&#9881;</a>
+      <label for="file-input" class="btn btn-outline btn-sm" style="cursor:pointer">选择文件</label>
+      <input type="file" id="file-input" accept=".log,.txt,.out" onchange="handleFilePick(this)" style="display:none">
     </div>
   </div>
 
@@ -72,7 +73,7 @@
 
 </main>
 
-<footer>AgentPlay &mdash; AI 驱动的运维日志诊断工具</footer>
+<footer>AgentPlay &mdash; AI 驱动的运维工作台</footer>
 <div id="toast" class="toast"></div>
 <script src="/static/app.js"></script>
 </body>

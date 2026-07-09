@@ -1,14 +1,13 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>事件时间线 - AgentPlay</title>
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<title>告警管理 - AgentPlay</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+
 <header>
   <div class="inner">
     <a href="/" class="logo">
@@ -19,18 +18,20 @@
       <a href="/">仪表盘</a>
       <a href="/servers">服务器</a>
       <a href="/diagnose">日志诊断</a>
-      <a href="/alerts">告警</a>
-      <a href="/timeline" class="active">时间线</a>
-      <a href="/knowledge" >知识库</a>
+      <a href="/alerts" class="active">告警</a>
+      <a href="/timeline">时间线</a>
+      <a href="/knowledge">知识库</a>
       <a href="/history">历史记录</a>
       <a href="/providers">供应商</a>
     </nav>
   </div>
 </header>
+
 <main class="container">
-  <h2>事件时间线</h2>
-  <div id="timeline-feed"><div class="spinner active"></div></div>
+  <h2>告警管理</h2>
+  <div id="alerts-content"><div class="spinner active"></div></div>
 </main>
+
 <footer>AgentPlay &mdash; AI 驱动的运维工作台</footer>
 <script src="/static/app.js"></script>
 </body>

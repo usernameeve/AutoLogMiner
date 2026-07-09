@@ -44,34 +44,47 @@ async def check_and_alert(server_id: int, check_id: int, metrics: dict) -> None:
 
 
 async def _send_webhook(url: str, server_name: str, metric: str, current: float, threshold: float, severity: str) -> None:
-    """向钉钉/飞书 Webhook 发送 Markdown 格式的告警消息。
-    通过 asyncio.to_thread 在线程池中执行同步 HTTP 请求，不阻塞事件循环。"""
-    payload = {
-        "msgtype": "markdown",
-        "markdown": {
-            "title": f"[AgentPlay] {server_name} {severity.upper()}",
-            "text": (
-                f"## ⚠️ AgentPlay 告警\n\n"
-                f"**服务器**: {server_name}\n"
-                f"**指标**: {metric.upper()}\n"
-                f"**当前值**: {current}%\n"
-                f"**阈值**: {threshold}%\n"
-                f"**级别**: {severity}\n"
-            ),
-        },
-    }
+    """Auto-detect DingTalk vs Feishu URL and send appropriate payload format."""
+
+    text = (
+        f"\u26a0\ufe0f AgentPlay \u544a\u8b66\\n\\n"
+        f"\u670d\u52a1\u5668: {server_name}\\n"
+        f"\u6307\u6807: {metric.upper()}\\n"
+        f"\u5f53\u524d\u503c: {current}%\\n"
+        f"\u9608\u503c: {threshold}%\\n"
+        f"\u7ea7\u522b: {severity}"
+    )
+
+    if "feishu" in url:
+        payload = {
+            "msg_type": "interactive",
+            "card": {
+                "header": {
+                    "title": {"tag": "plain_text", "content": f"AgentPlay \u544a\u8b66 - {server_name}"},
+                    "template": "red" if severity == "critical" else "yellow",
+                },
+                "elements": [{"tag": "div", "text": {"tag": "lark_md", "content": text.replace("\\n", "\n")}}],
+            },
+        }
+    else:
+        payload = {
+            "msgtype": "markdown",
+            "markdown": {
+                "title": f"[AgentPlay] {server_name} {severity.upper()}",
+                "text": text.replace("\\n", "  \n"),
+            },
+        }
 
     def _post():
-        """同步 HTTP POST，Webhook 失败不影响主流程。"""
         req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
+            url, data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"}, method="POST",
         )
         try:
             urllib.request.urlopen(req, timeout=10)
         except Exception:
-            pass  # Webhook 不可达时静默跳过
+            pass
 
     await asyncio.to_thread(_post)
+
+

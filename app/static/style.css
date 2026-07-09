@@ -57,8 +57,6 @@ textarea::placeholder { color: #9aa0a6; }
 .hint-select { padding: 7px 10px; border: 1px solid #dadce0; border-radius: 6px; font-size: 13px; background: #fff; color: #5f6368; cursor: pointer; }
 .hint-select:focus { outline: none; border-color: #0984e3; }
 
-/* File label */
-.file-label { cursor: pointer; }
 
 /* Provider link */
 .provider-link { font-size: 16px; color: #9aa0a6; padding: 2px 6px; }
@@ -206,3 +204,30 @@ footer { text-align: center; padding: 20px; color: #9aa0a6; font-size: 12px; }
 .server-card, .modal, .toast, .alert-item, .health-metric-card { will-change: transform, opacity; }
 .modal-overlay { will-change: opacity; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+
+/* ======================== Diagnose: Log Input with File Pick ======================== */
+
+.log-input-wrap { position: relative; }
+.log-input-wrap textarea { padding-right: 44px; }
+
+.file-pick {
+  position: absolute; bottom: 10px; right: 10px; z-index: 1;
+  width: 32px; height: 32px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; cursor: pointer; color: #9aa0a6;
+  transition: color 0.15s, background 0.15s;
+}
+.file-pick:hover { color: #0984e3; background: #e8f0fe; }
+#file-input { display: none; }
+
+/* File chips */
+.file-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.file-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; background: #e8f0fe; border: 1px solid #c6dafc;
+  border-radius: 6px; font-size: 12px; color: #1a73e8;
+}
+.file-chip .chip-remove {
+  cursor: pointer; font-size: 14px; line-height: 1; color: #5f6368;
+}
+.file-chip .chip-remove:hover { color: #d93025; }

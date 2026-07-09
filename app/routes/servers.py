@@ -219,6 +219,20 @@ async def health_trend(server_id: int, hours: int = 24):
     }
 
 
+@router.put("/alerts/{alert_id}/resolve")
+async def resolve_alert(alert_id: int):
+    """Mark an alert as resolved."""
+    from datetime import datetime
+    db_conn = await db.get_db()
+    await db_conn.execute(
+        "UPDATE alerts SET is_resolved = 1, resolved_at = ? WHERE id = ?",
+        (datetime.now().isoformat(), alert_id),
+    )
+    await db_conn.commit()
+    await db_conn.close()
+    return {"status": "resolved"}
+
+
 @router.get("/alerts")
 async def list_alerts(limit: int = 50):
     """获取最近 N 条告警记录。"""

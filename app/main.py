@@ -64,6 +64,11 @@ async def server_detail_page(request: Request, server_id: int):
     return templates.TemplateResponse("server_detail.html", {"request": request, "server_id": server_id})
 
 
+@app.get("/alerts")
+async def alerts_page(request: Request):
+    return templates.TemplateResponse("alerts.html", {"request": request})
+
+
 @app.get("/timeline")
 async def timeline_page(request: Request):
     return templates.TemplateResponse("timeline.html", {"request": request})
