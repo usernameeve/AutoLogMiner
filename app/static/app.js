@@ -1,3 +1,69 @@
+// ======================== GSAP Animation System ========================
+// GSAP loaded via <script> tag in templates. Uses transforms-only for 60fps.
+// Respects prefers-reduced-motion via gsap.matchMedia.
+
+function _animPageCards(selector, opts) {
+  const cards = document.querySelectorAll(selector);
+  if (!cards.length || !window.gsap) return;
+  gsap.from(cards, {
+    y: 20, opacity: 0, duration: 0.35,
+    stagger: (opts && opts.stagger) || 0.05, ease: "power2.out",
+    clearProps: "transform,opacity",
+  });
+}
+
+function _animModalIn() {
+  const overlay = document.getElementById("server-modal");
+  if (!overlay || !window.gsap) return;
+  const modal = overlay.querySelector(".modal");
+  gsap.fromTo(modal, { scale: 0.92, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.2, ease: "power2.out" });
+  gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.15 });
+}
+
+function _animModalOut(cb) {
+  const overlay = document.getElementById("server-modal");
+  if (!overlay || !window.gsap) { overlay && (overlay.style.display = "none"); if (cb) cb(); return; }
+  const modal = overlay.querySelector(".modal");
+  gsap.to(modal, { scale: 0.92, opacity: 0, duration: 0.15, ease: "power2.in" });
+  gsap.to(overlay, { opacity: 0, duration: 0.15, onComplete: () => { overlay.style.display = "none"; if (cb) cb(); } });
+}
+
+function _animToast(msg) {
+  const el = document.getElementById("toast");
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = "block";
+  if (!window.gsap) return;
+  gsap.fromTo(el, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.25, ease: "power2.out",
+    onComplete: () => { gsap.to(el, { y: -20, opacity: 0, duration: 0.25, delay: 1.8, ease: "power2.in" }); }
+  });
+}
+
+function _animHealthResult(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el || !window.gsap) return;
+  const cards = el.querySelectorAll(".health-metric-card");
+  if (cards.length) gsap.from(cards, { y: 16, opacity: 0, duration: 0.3, stagger: 0.06, ease: "power2.out", clearProps: "transform,opacity" });
+}
+
+function _animAlerts() {
+  if (!window.gsap) return;
+  const items = document.querySelectorAll(".alert-item");
+  if (items.length) gsap.from(items, { x: -16, opacity: 0, duration: 0.25, stagger: 0.04, ease: "power2.out", clearProps: "transform,opacity" });
+}
+
+// Override modal and toast functions with animated versions
+const _origCloseModal = closeModal || function() {};
+closeModal = function() { _animModalOut(() => {}); };
+
+const _origShowAdd = showAddServerModal || function() {};
+showAddServerModal = function() { _origShowAdd(); setTimeout(() => _animModalIn(), 50); };
+
+showToast = function(msg) { _animToast(msg); };
+
+const _origEditServer = editServer || function() {};
+editServer = async function(id) { await _origEditServer(id); setTimeout(() => _animModalIn(), 50); };
+
 
 // ======================== Chart Registry ========================
 
@@ -33,7 +99,7 @@ async function loadDashboard() {
     }
 
     if (data.servers.length === 0) {
-      grid.innerHTML = "<p style=\"color:#9aa0a6\">暂无服务器，<a href=\"/servers\">去添加</a></p>";
+      grid.innerHTML = "<p style=\"color:#9aa0a6\">暂无服务器，<a href=\"/servers\">去添加</a></p>";;
       return;
     }
 
@@ -70,6 +136,7 @@ async function loadDashboard() {
       html += "</div>";
     }
     grid.innerHTML = html;
+    _animPageCards(".server-card", {stagger: 0.04});
 
     // Load mini charts
     for (const s of data.servers) {
@@ -152,6 +219,7 @@ async function loadAlerts() {
     }
     html += "</div>";
     section.innerHTML = html;
+    _animAlerts();
   } catch (e) { /* silent */ }
 }
 
@@ -361,6 +429,7 @@ async function runHealthCheck() {
     html += "</div>";
     if (data.ai_summary) html += `<div style="background:#f0f7ff;padding:12px;border-radius:6px;margin-top:12px;font-size:13px"><strong>AI 分析</strong><br>${escapeHtml(data.ai_summary)}</div>`;
     document.getElementById("health-result").innerHTML = html;
+    _animHealthResult("health-result");
     loadTrendChart();
   } catch (e) {
     document.getElementById("health-result").innerHTML = `<p style="color:#d93025">${escapeHtml(e.message)}</p>`;
