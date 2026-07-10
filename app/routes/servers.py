@@ -8,7 +8,16 @@ from app.services.ssh import exec_command as ssh_exec
 from app.services.alerting import check_and_alert
 from app import db
 
-_DANGEROUS_COMMANDS = ["rm -rf /", "mkfs.", "dd if=", "> /dev/sd", "shutdown", "reboot", "halt", "poweroff", ":(){ :|:& };:"]
+_DANGEROUS_PATTERNS = [
+    "rm -rf /", "rm -rf ~", "rm -rf .", "find . -delete", "find / -delete",
+    "mkfs.", "dd if=", "> /dev/sd",
+    "shutdown", "reboot", "halt", "poweroff", "init 0", "init 6",
+    ":(){ :|:& };:",  # fork bomb
+    "chmod 000 /", "chmod -R 000",
+    "iptables -P", "iptables -F",
+    "| sh", "| bash", "curl", "wget",
+]
+_DANGEROUS_OPERATORS = ["`", "$("]  # command substitution only; pipe/redirect are normal ops
 
 router = APIRouter(prefix="/api", tags=["servers"])
 
@@ -186,11 +195,14 @@ async def execute_command(server_id: int, data: dict):
     command = data.get("command", "").strip()
     if not command:
         raise HTTPException(status_code=400, detail="Missing command")
-    # Block dangerous commands
+    # Block dangerous commands (pattern matching + dangerous operators)
     cmd_lower = command.lower()
-    for d in _DANGEROUS_COMMANDS:
+    for d in _DANGEROUS_PATTERNS:
         if d in cmd_lower:
             raise HTTPException(status_code=400, detail=f"Dangerous command blocked: {d}")
+    for op in _DANGEROUS_OPERATORS:
+        if op in command:
+            raise HTTPException(status_code=400, detail=f"Dangerous operator blocked: {op}")
     stdout, stderr, code = await ssh_exec(
         srv["host"], srv["port"], srv["username"],
         srv["auth_type"], srv["ssh_password"], srv["ssh_key_path"],

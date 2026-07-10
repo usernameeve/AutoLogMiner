@@ -18,6 +18,9 @@ async def get_db() -> aiosqlite.Connection:
 async def init_db():
     """初始化数据库：建表，若无供应商则从 .env 种子导入默认供应商。"""
     db = await get_db()
+    # Enable WAL mode for concurrent reads/writes
+    await db.execute("PRAGMA journal_mode=WAL")
+    await db.execute("PRAGMA busy_timeout=3000")
     # 诊断记录表
     await db.execute("""
         CREATE TABLE IF NOT EXISTS diagnoses (

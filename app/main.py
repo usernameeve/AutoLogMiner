@@ -9,7 +9,7 @@ import os
 from app.db import init_db
 from app.services.scheduler import start_scheduler, shutdown_scheduler
 from app.routes import diagnose, history, providers
-from app.routes import servers, dashboard, timeline, knowledge
+from app.routes import demo, servers, dashboard, timeline, knowledge
 
 
 @asynccontextmanager
@@ -36,6 +36,7 @@ app.include_router(diagnose.router)
 app.include_router(history.router)
 app.include_router(providers.router)
 app.include_router(servers.router)
+app.include_router(demo.router)
 app.include_router(dashboard.router)
 app.include_router(timeline.router)
 app.include_router(knowledge.router)

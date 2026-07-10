@@ -70,4 +70,8 @@ def smart_filter_log(log_content: str, max_est_tokens: int = _MAX_EST_TOKENS) ->
         from app.services.prompt import truncate_log
         result = header + truncate_log("\n".join(output_lines), max_lines=int(max_est_tokens / 4))
 
+    # Safety net: always append last 50 lines of original log
+    tail = "\n".join(lines[-50:])
+    result += "\n\n[Safety: last 50 lines appended]\n```\n" + tail + "\n```"
+
     return result

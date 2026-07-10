@@ -47,7 +47,7 @@ async def _cleanup_job():
 
 def start_scheduler():
     """启动调度器，注册每分钟执行一次的健康检查任务。"""
-    scheduler.add_job(_scheduled_job, "interval", minutes=1, id="health_check")
+    scheduler.add_job(_scheduled_job, "interval", minutes=1, id="health_check", max_instances=1, misfire_grace_time=30)
     scheduler.add_job(_cleanup_job, "interval", hours=24, id="data_cleanup")
     scheduler.start()
 

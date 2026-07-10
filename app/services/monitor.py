@@ -108,9 +108,23 @@ async def collect_metrics(
 
 
 async def analyze_health(metrics: dict, provider_id: int | None = None) -> str:
-    """Feed collected metrics to AI for analysis and recommendations."""
+    """Feed collected metrics to AI for analysis and recommendations.
+    Skip AI call if all metrics are within normal range to save cost."""
     if metrics.get("cpu_percent") is None and metrics.get("mem_percent") is None:
         return ""
+
+    # Cost optimization: skip LLM if all indicators are healthy
+    cpu = metrics.get("cpu_percent")
+    mem = metrics.get("mem_percent")
+    disk = metrics.get("disk_percent")
+    errors = metrics.get("recent_errors", "")
+    if (
+        (cpu is not None and cpu < 50) and
+        (mem is not None and mem < 60) and
+        (disk is not None and disk < 80) and
+        not errors
+    ):
+        return "各项指标正常，无需处理。"
 
     client = await get_client(provider_id)
 
