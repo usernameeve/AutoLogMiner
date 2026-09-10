@@ -110,10 +110,11 @@ async function loadMiniChart(serverId) {
   } catch (e) { /* silent */ }
 }
 
-async function batchHealthCheck() {
-  const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = "检测中...";
+async function batchHealthCheck(btn) {
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "检测中...";
+  }
   try {
     const resp = await apiFetch("/api/servers");
     const servers = await resp.json();
@@ -127,8 +128,10 @@ async function batchHealthCheck() {
   } catch (e) {
     showToast("批量检测失败");
   } finally {
-    btn.disabled = false;
-    btn.textContent = "全部检测";
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "全部检测";
+    }
   }
 }
 
