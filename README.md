@@ -106,7 +106,7 @@ AI 诊断给出的修复步骤可一键在目标服务器执行，实时显示 s
 
 ### 演示模式
 
-无需真实服务器即可体验全部功能。点击仪表盘「演示数据」，自动生成 3 台虚拟服务器、24 小时模拟健康数据与若干告警，仪表盘 / 趋势图 / 告警 / 时间线全部可交互浏览。重置操作只清除 `is_demo=1` 的演示数据，真实服务器及其关联数据原样保留。
+无需真实服务器即可体验全部功能。点击仪表盘「演示数据」，自动生成 3 台虚拟服务器、24 小时模拟健康数据与若干告警，仪表盘 / 趋势图 / 告警 / 时间线全部可交互浏览。点击「重置演示数据」按钮（`DELETE /api/demo/reset`）只清除 `is_demo=1` 的演示数据，真实服务器及其关联数据原样保留。
 
 ### 多 LLM 供应商
 
@@ -219,7 +219,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/api/servers
 
 **流程四：无服务器体验（演示模式）**
 
-在 `/` 点「演示数据」，走 `POST /api/demo/seed` 生成 3 台虚拟服务器、24h 健康数据与告警。点重置走 `DELETE /api/demo/reset`，只清演示数据。
+在 `/` 点「演示数据」，走 `POST /api/demo/seed` 生成 3 台虚拟服务器、24h 健康数据与告警。点「重置演示数据」按钮走 `DELETE /api/demo/reset`，只清演示数据。
 
 ### 关键 API 调用示例
 
@@ -704,7 +704,7 @@ openssl rand -hex 16
 已加密的 SSH 密码将无法解密，需要重新填写服务器密码。建议备份 `.env` 中的该键。
 
 **Q10：诊断页的「开始诊断」按钮点了没反应。**
-这是已知技术债：`diagnose.html` 的 `diagnoseStream` / `loadSample` 是未实现的死引用（见 `Docs/Risks.md` 技术债 D2）。当前可靠的诊断路径是：在服务器详情页获取日志后使用内联 AI 诊断，或直接调用 `POST /api/diagnose`、`POST /api/diagnose/stream` 接口。
+已修复（原技术债 D2，见 `Docs/Risks.md`）：`app/static/js/diagnose.js` 已实现 `loadSample` / `diagnoseStream` / `loadProviderOptions`。三个示例按钮可一键填入 Nginx 502 / MySQL 连接 / Docker OOM 日志样例，点击「开始诊断」通过 `POST /api/diagnose/stream` 流式返回并渲染结构化卡片（严重程度 / 摘要 / 根因 / 修复步骤 / 预防建议），供应商下拉从 `GET /api/providers` 动态加载。若 LLM 不可用（未配置 API Key），页面会显示错误信息而不是无响应。
 
 ---
 
@@ -714,7 +714,8 @@ openssl rand -hex 16
 
 - **已缓解**：命令注入、零鉴权、外键孤儿、路径穿越、前缀绕过、存储型 XSS、demo 越权删除、SSE 不终止、旧库迁移丢数据等。
 - **已接受**：SSH 主机密钥不校验（仅内网）、供应商密钥明文存储（依赖 DB 权限）、演示数据时间戳失真。
-- **后续方向**：用户体系与 RBAC、SSH 连接池、供应商密钥加密存储、把演示数据时间戳下沉到 `save_health_check`、补齐或移除 `diagnose.html` 的死引用。
+- **本次修复**：`diagnose.html` 的 `loadSample` / `diagnoseStream` 死引用已补实现（D2 关闭）。
+- **后续方向**：用户体系与 RBAC、SSH 连接池、供应商密钥加密存储、把演示数据时间戳下沉到 `save_health_check`。
 
 任何行为变更都必须同步更新 README 与 `Docs/`，这是项目的文档同步原则。
 

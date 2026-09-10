@@ -91,7 +91,7 @@
 | ID | 债务 | 位置 | 影响 | 建议 |
 |----|------|------|------|------|
 | D1 | demo 采样时间未生效 | `app/routes/demo.py` | 趋势图失真 | 给 `save_health_check` 加时间参数 |
-| D2 | `diagnose.html` 的 `loadSample` / `diagnoseStream` 死引用 | `app/templates/diagnose.html` | 点击无响应 | 补实现或移除引用 |
+| D2 | ~~`diagnose.html` 的 `loadSample` / `diagnoseStream` 死引用~~ **已修复** | `app/static/js/diagnose.js` | 点击无响应 | 已补实现：示例填充 + SSE 流式诊断 + 供应商下拉（2026-09-10） |
 | D3 | `providers` 密钥明文 | `app/db.py` | 泄露风险 | 加密存储 |
 | D4 | SSH 无连接复用 | `app/services/ssh.py` | 高频场景慢 | 引入按需连接池 |
 | D5 | 无多用户/RBAC | 全局 | 无法团队协作 | 后续引入用户体系 |
