@@ -5,9 +5,16 @@
 __pycache__/
 *.pyc
 *.pyo
+.venv/
 
 # Data
 data/
+
+# Local state / tooling scratch
+.omo/
+work/
+.pytest_cache/
+.ruff_cache/
 
 # IDE
 .vscode/
