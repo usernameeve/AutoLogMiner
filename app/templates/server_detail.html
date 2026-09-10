@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>服务器详情 - AgentPlay</title>
+<title>服务器详情 - AutoLogMiner</title>
 <link rel="stylesheet" href="/static/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
@@ -14,7 +14,7 @@
   <div class="inner">
     <a href="/" class="logo">
       <span class="icon">&#9889;</span>
-      AgentPlay
+      AutoLogMiner
     </a>
     <nav>
       <a href="/">仪表盘</a>
@@ -24,7 +24,6 @@
       <a href="/alerts">告警</a>
       <a href="/timeline">时间线</a>
       <a href="/knowledge">知识库</a>
-      <a href="/history">历史记录</a>
       <a href="/providers">供应商</a>
     </nav>
   </div>
@@ -100,11 +99,18 @@
   </div>
 </main>
 
-<footer>AgentPlay &mdash; AI 驱动的运维工作台</footer>
+<footer>AutoLogMiner &mdash; AI 驱动的运维工作台</footer>
 <div id="toast" class="toast"></div>
 <script>
 const SERVER_ID = {{ server_id }};
 </script>
+<script src="/static/js/dashboard.js"></script>
+<script src="/static/js/servers.js"></script>
+<script src="/static/js/diagnose.js"></script>
+<script src="/static/js/alerts.js"></script>
+<script src="/static/js/timeline.js"></script>
+<script src="/static/js/knowledge.js"></script>
+<script src="/static/js/demo.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

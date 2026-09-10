@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>历史记录 - AgentPlay</title>
+<title>历史记录 - AutoLogMiner</title>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="/static/js/api.js"></script>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -13,7 +14,7 @@
   <div class="inner">
     <a href="/" class="logo">
       <span class="icon">&#9889;</span>
-      AgentPlay
+      AutoLogMiner
     </a>
     <nav>
       <a href="/">仪表盘</a>
@@ -39,13 +40,13 @@
 
 </main>
 
-<footer>AgentPlay &mdash; AI 驱动的运维工作台</footer>
+<footer>AutoLogMiner &mdash; AI 驱动的运维工作台</footer>
 
 <script>
 async function loadHistory() {
   const container = document.getElementById("history-content");
   try {
-    const resp = await fetch("/api/history");
+    const resp = await apiFetch("/api/history");
     const data = await resp.json();
     if (!data.records || data.records.length === 0) {
       container.innerHTML = '<div class="empty"><span class="icon">&#128203;</span><p>暂无诊断记录</p></div>';
@@ -58,31 +59,46 @@ async function loadHistory() {
         <td style="color:#9aa0a6">#${r.id}</td>
         <td style="white-space:nowrap;font-size:12px;color:#5f6368">${new Date(r.timestamp).toLocaleString("zh-CN")}</td>
         <td class="col-preview">${escapeHtml(r.log_preview || "")}</td>
-        <td><span class="severity-badge ${sevClass}">${r.severity || "-"}</span></td>
+        <td><span class="severity-badge ${sevClass}">${escapeHtml(r.severity || "-")}</span></td>
         <td>${escapeHtml(r.summary || "")}</td>
-        <td class="col-actions"><button onclick="viewDetail(${r.id})">查看</button></td>
+        <td class="col-actions"><button data-action="view" data-id="${r.id}">查看</button></td>
       </tr>`;
     }
     html += "</tbody></table>";
     container.innerHTML = html;
+    container.querySelectorAll('button[data-action="view"]').forEach(function (btn) {
+      btn.addEventListener("click", function () { viewDetail(parseInt(btn.dataset.id, 10)); });
+    });
   } catch (e) {
     container.innerHTML = `<p style="color:#d93025">加载失败: ${escapeHtml(e.message)}</p>`;
   }
 }
 
 function getSeverityClass(sev) {
-  const m = { "P0-紧急": "severity-p0", "P1-严重": "severity-p1", "P2-一般": "severity-p2", "P3-提示": "severity-p3" };
-  return m[sev] || "";
+  const m = {
+    "P0-紧急": "severity-p0",
+    "P1-严重": "severity-p1",
+    "P2-一般": "severity-p2",
+    "P3-提示": "severity-p3",
+    "P0": "severity-p0",
+    "P1": "severity-p1",
+    "P2": "severity-p2",
+    "P3": "severity-p3",
+    "critical": "severity-p0",
+    "warning": "severity-p2",
+  };
+  return Object.prototype.hasOwnProperty.call(m, sev) ? m[sev] : "severity-p3";
 }
 
 function escapeHtml(str) {
   if (!str) return "";
-  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 }
 
 async function viewDetail(id) {
   try {
-    const resp = await fetch("/api/history/" + id);
+    const resp = await apiFetch("/api/history/" + id);
     const data = await resp.json();
     const result = JSON.parse(data.full_result || "{}");
     let stepsHtml = (result.fix_steps || []).map((s, i) => `<li>${escapeHtml(s)}</li>`).join("");
@@ -91,14 +107,18 @@ async function viewDetail(id) {
         ${new Date(data.timestamp).toLocaleString("zh-CN")} &mdash; ${escapeHtml(data.log_preview)}
       </p>
       <h3>问题摘要</h3><p>${escapeHtml(result.summary || "")}</p>
-      <span class="severity-badge ${getSeverityClass(result.severity)}">${result.severity}</span>
+      <span class="severity-badge ${getSeverityClass(result.severity)}">${escapeHtml(result.severity || "-")}</span>
       <h3>根因分析</h3><p>${escapeHtml(result.root_cause || "")}</p>
       <h3>修复步骤</h3><ol>${stepsHtml || "<li>无</li>"}</ol>
       <h3>预防建议</h3><p>${escapeHtml(result.prevention || "")}</p>
-      <p style="margin-top:20px"><a href="/history">&larr; 返回列表</a> &nbsp; <a href="#" onclick="exportReport(RECORD_ID)" style="color:#1a73e8">导出 Markdown</a></p>
+      <p style="margin-top:20px"><a href="/history">&larr; 返回列表</a> &nbsp; <a href="#" id="export-report-link" data-id="${id}" style="color:#1a73e8">导出 Markdown</a></p>
     </div>`;
     document.getElementById("history-content").innerHTML = html;
-      window.RECORD_ID = id;
+    const exportLink = document.getElementById("export-report-link");
+    if (exportLink) exportLink.addEventListener("click", function (e) {
+      e.preventDefault();
+      if (typeof exportReport === "function") exportReport(id);
+    });
   } catch (e) {
     alert("加载失败: " + e.message);
   }

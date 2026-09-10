@@ -90,6 +90,12 @@ textarea::placeholder { color: #9aa0a6; }
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
+/* CDN degradation notice (in-flow, never covers the page) */
+.degrade-notice {
+    background: #fef7e0; border-left: 3px solid #f9ab00; color: #5f6368;
+    padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 16px;
+}
+
 /* Footer */
 footer { text-align: center; padding: 20px; color: #9aa0a6; font-size: 12px; }
 
