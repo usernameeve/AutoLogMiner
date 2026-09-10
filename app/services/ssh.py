@@ -3,14 +3,14 @@
 import asyncio
 import asyncssh
 from cryptography.fernet import Fernet
-from app.config import SSH_ENCRYPTION_KEY, SSH_CONNECT_TIMEOUT, SSH_COMMAND_TIMEOUT
+from app import config
 
 
 def encrypt_password(plain: str) -> str:
     """使用 Fernet 对称加密 SSH 密码，存储到数据库前调用。"""
     if not plain:
         return ""
-    f = Fernet(SSH_ENCRYPTION_KEY.encode())
+    f = Fernet(config.SSH_ENCRYPTION_KEY.encode())
     return f.encrypt(plain.encode()).decode()
 
 
@@ -18,7 +18,7 @@ def decrypt_password(encrypted: str) -> str:
     """解密 Fernet 加密的 SSH 密码，建立连接前调用。"""
     if not encrypted:
         return ""
-    f = Fernet(SSH_ENCRYPTION_KEY.encode())
+    f = Fernet(config.SSH_ENCRYPTION_KEY.encode())
     return f.decrypt(encrypted.encode()).decode()
 
 
@@ -46,7 +46,7 @@ async def _connect_once(
             host, port=port, username=username,
             client_keys=[key_path],
             known_hosts=None,
-            connect_timeout=SSH_CONNECT_TIMEOUT,
+            connect_timeout=config.SSH_CONNECT_TIMEOUT,
         )
     else:
         plain_pw = decrypt_password(password) if password else ""
@@ -54,7 +54,7 @@ async def _connect_once(
             host, port=port, username=username,
             password=plain_pw,
             known_hosts=None,
-            connect_timeout=SSH_CONNECT_TIMEOUT,
+            connect_timeout=config.SSH_CONNECT_TIMEOUT,
         )
     return conn
 
@@ -62,7 +62,7 @@ async def _connect_once(
 async def exec_command(
     host: str, port: int, username: str,
     auth_type: str, password: str, key_path: str,
-    command: str, timeout: int = SSH_COMMAND_TIMEOUT,
+    command: str, timeout: int = config.SSH_COMMAND_TIMEOUT,
 ) -> tuple[str, str, int]:
     """在远程服务器上执行命令，返回 (stdout, stderr, exit_code)。
     每次调用新建连接，执行完立即关闭，不使用连接池。"""

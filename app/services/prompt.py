@@ -1,8 +1,10 @@
 """提示词服务 — 系统提示词模板、知识库注入、日志截断。"""
 
 import os
-from app.config import KNOWLEDGE_DIR, LOG_MAX_LINES
-from app.services.log_filter import smart_filter_log
+from app.config import KNOWLEDGE_DIR
+from app.services.log_filter import smart_filter_log, truncate_log
+
+__all__ = ["SYSTEM_PROMPT", "build_messages", "load_knowledge", "truncate_log"]
 
 # 系统提示词：角色设定 + 输出格式约束 + 严重程度分级标准
 SYSTEM_PROMPT = """你是一位资深的运维工程师和故障诊断专家，拥有10年以上的生产环境排障经验。
@@ -62,7 +64,7 @@ def build_messages(log_content: str, service_hint: str | None = None) -> list[di
     if knowledge:
         system_text += f"\n\n## 参考知识库\n{knowledge}"
 
-    # 组装用户消息：日志内容 + 可选的服务提示
+    # 组装用户消息：日志内容 + 可选的服务提示（唯一一对 Markdown 围栏在此处包裹）
     user_text = "请分析以下日志并给出诊断结果：\n\n```\n"
     user_text += smart_filter_log(log_content)
     user_text += "\n```"
@@ -73,18 +75,3 @@ def build_messages(log_content: str, service_hint: str | None = None) -> list[di
         {"role": "system", "content": system_text},
         {"role": "user", "content": user_text},
     ]
-
-
-def truncate_log(log: str, max_lines: int = LOG_MAX_LINES) -> str:
-    """超长日志截断：保留前 60% 和后 40%，中间插入省略提示。"""
-    lines = log.splitlines()
-    if len(lines) <= max_lines:
-        return log
-    head = int(max_lines * 0.6)
-    tail = max_lines - head
-    head_lines = lines[:head]
-    tail_lines = lines[-tail:] if tail > 0 else []
-    truncated = "\n".join(head_lines)
-    truncated += f"\n... [省略中间 {len(lines) - head - tail} 行] ...\n"
-    truncated += "\n".join(tail_lines)
-    return truncated

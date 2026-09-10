@@ -2,6 +2,8 @@
 
 import re
 
+from app.config import LOG_MAX_LINES
+
 _SIGNAL_PATTERNS = [
     r'\b(ERROR|FATAL|CRITICAL|EMERG|ALERT|PANIC)\b',
     r'\b(WARN|WARNING)\b',
@@ -21,7 +23,11 @@ _CONTEXT_LINES = 2
 
 
 def smart_filter_log(log_content: str, max_est_tokens: int = _MAX_EST_TOKENS) -> str:
-    """Extract diagnostically meaningful lines from a potentially huge log."""
+    """Extract diagnostically meaningful lines from a potentially huge log.
+
+    Returns plain text only — never wraps its output in Markdown code fences.
+    Callers (e.g. build_messages) own the fence-wrapping.
+    """
     if not log_content or not log_content.strip():
         return log_content
 
@@ -40,7 +46,6 @@ def smart_filter_log(log_content: str, max_est_tokens: int = _MAX_EST_TOKENS) ->
                 break
 
     if not interesting:
-        from app.services.prompt import truncate_log
         return truncate_log(log_content, max_lines=600)
 
     output_lines = []
@@ -67,11 +72,25 @@ def smart_filter_log(log_content: str, max_est_tokens: int = _MAX_EST_TOKENS) ->
 
     est_tokens = len(result) / 4
     if est_tokens > max_est_tokens:
-        from app.services.prompt import truncate_log
         result = header + truncate_log("\n".join(output_lines), max_lines=int(max_est_tokens / 4))
 
-    # Safety net: always append last 50 lines of original log
+    # Safety net: always append last 50 lines of original log (plain text, no code fences)
     tail = "\n".join(lines[-50:])
-    result += "\n\n[Safety: last 50 lines appended]\n```\n" + tail + "\n```"
+    result += "\n\n[Safety: last 50 lines appended]\n" + tail
 
     return result
+
+
+def truncate_log(log: str, max_lines: int = LOG_MAX_LINES) -> str:
+    """超长日志截断：保留前 60% 和后 40%，中间插入省略提示。"""
+    lines = log.splitlines()
+    if len(lines) <= max_lines:
+        return log
+    head = int(max_lines * 0.6)
+    tail = max_lines - head
+    head_lines = lines[:head]
+    tail_lines = lines[-tail:] if tail > 0 else []
+    truncated = "\n".join(head_lines)
+    truncated += f"\n... [省略中间 {len(lines) - head - tail} 行] ...\n"
+    truncated += "\n".join(tail_lines)
+    return truncated

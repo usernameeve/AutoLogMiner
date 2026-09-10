@@ -47,7 +47,7 @@ async def _send_webhook(url: str, server_name: str, metric: str, current: float,
     """Auto-detect DingTalk vs Feishu URL and send appropriate payload format."""
 
     text = (
-        f"\u26a0\ufe0f AgentPlay \u544a\u8b66\\n\\n"
+        f"\u26a0\ufe0f AutoLogMiner \u544a\u8b66\\n\\n"
         f"\u670d\u52a1\u5668: {server_name}\\n"
         f"\u6307\u6807: {metric.upper()}\\n"
         f"\u5f53\u524d\u503c: {current}%\\n"
@@ -60,7 +60,7 @@ async def _send_webhook(url: str, server_name: str, metric: str, current: float,
             "msg_type": "interactive",
             "card": {
                 "header": {
-                    "title": {"tag": "plain_text", "content": f"AgentPlay \u544a\u8b66 - {server_name}"},
+                    "title": {"tag": "plain_text", "content": f"AutoLogMiner \u544a\u8b66 - {server_name}"},
                     "template": "red" if severity == "critical" else "yellow",
                 },
                 "elements": [{"tag": "div", "text": {"tag": "lark_md", "content": text.replace("\\n", "\n")}}],
@@ -70,7 +70,7 @@ async def _send_webhook(url: str, server_name: str, metric: str, current: float,
         payload = {
             "msgtype": "markdown",
             "markdown": {
-                "title": f"[AgentPlay] {server_name} {severity.upper()}",
+                "title": f"[AutoLogMiner] {server_name} {severity.upper()}",
                 "text": text.replace("\\n", "  \n"),
             },
         }
@@ -84,7 +84,7 @@ async def _send_webhook(url: str, server_name: str, metric: str, current: float,
             urllib.request.urlopen(req, timeout=10)
         except Exception as e:
             import sys
-            print(f"[AgentPlay] Webhook failed: {str(e)[:100]}", file=sys.stderr)
+            print(f"[AutoLogMiner] Webhook failed: {str(e)[:100]}", file=sys.stderr)
 
     await asyncio.to_thread(_post)
 

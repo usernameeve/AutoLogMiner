@@ -1,17 +1,65 @@
 """数据库操作模块 — SQLite 异步连接管理、诊断记录和供应商 CRUD。"""
 
 import os
+import sqlite3
 import aiosqlite
 import json
 from datetime import datetime, timedelta
 from app.config import DB_PATH
 
+# 迁移兼容：旧产品名下的数据库文件名，仅用于识别并迁移旧库，勿随命名统一改名。
+LEGACY_DB_NAME = "logdoctor.db"
+
+
+def migrate_legacy_db() -> None:
+    """将旧产品名的 SQLite 库安全迁移为 DB_PATH（幂等、WAL 安全）。
+
+    步骤（顺序不可调换）：
+    1. 新库已存在 -> 直接返回，不覆盖、不报错；
+    2. 旧库不存在 -> 返回；
+    3. 打开旧库执行 `PRAGMA wal_checkpoint(TRUNCATE)` 后关闭，把 -wal 中
+       已提交的数据落盘到主库文件，避免移动文件时丢数据；
+    4. 对存在的 `logdoctor.db` / `-wal` / `-shm` 逐个 os.replace 到新基名；
+    5. 任一步失败则回滚已移动的文件并抛出，绝不静默留下半迁移状态。
+    """
+    new_path = DB_PATH
+    legacy_path = os.path.join(os.path.dirname(new_path), LEGACY_DB_NAME)
+    if os.path.exists(new_path) or not os.path.exists(legacy_path):
+        return
+
+    conn = sqlite3.connect(legacy_path)
+    try:
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        conn.commit()
+    finally:
+        conn.close()
+
+    moved: list[tuple[str, str]] = []
+    try:
+        for suffix in ("", "-wal", "-shm"):
+            src = legacy_path + suffix
+            if os.path.exists(src):
+                dst = new_path + suffix
+                os.replace(src, dst)
+                moved.append((src, dst))
+    except OSError:
+        for src, dst in reversed(moved):
+            if os.path.exists(dst) and not os.path.exists(src):
+                os.replace(dst, src)
+        raise
+
+    print(f"[migrate] {LEGACY_DB_NAME} -> {os.path.basename(new_path)}", flush=True)
+
 
 async def get_db() -> aiosqlite.Connection:
-    """获取数据库连接，自动创建数据目录并以 Row 工厂模式返回游标。"""
+    """获取数据库连接，自动创建数据目录并以 Row 工厂模式返回游标。
+
+    SQLite 默认 foreign_keys=0，必须每个连接单独启用，否则 ON DELETE CASCADE 不生效。
+    """
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     db = await aiosqlite.connect(DB_PATH)
     db.row_factory = aiosqlite.Row
+    await db.execute("PRAGMA foreign_keys=ON")
     return db
 
 
@@ -63,9 +111,15 @@ async def init_db():
             env TEXT NOT NULL DEFAULT 'production',
             status TEXT NOT NULL DEFAULT 'unknown',
             last_checked_at TEXT,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            is_demo INTEGER NOT NULL DEFAULT 0
         )
     """)
+    # 迁移：旧库补齐 is_demo 列（幂等；新库建表已含该列时跳过）
+    cursor = await db.execute("PRAGMA table_info(servers)")
+    columns = {row[1] for row in await cursor.fetchall()}
+    if "is_demo" not in columns:
+        await db.execute("ALTER TABLE servers ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0")
     # 健康检查记录表
     await db.execute("""
         CREATE TABLE IF NOT EXISTS health_checks (
@@ -113,11 +167,19 @@ async def init_db():
     """)
     await db.commit()
 
-    # 首次启动：将 .env 配置写入默认供应商
+    # 历史孤儿数据清理：删除 server_id 已不存在于 servers 表的残留记录。
+    # 注意：开启外键只约束“以后”的写入，不会修复旧数据；此清理幂等，可安全重复执行。
+    await db.execute("DELETE FROM alerts WHERE server_id NOT IN (SELECT id FROM servers)")
+    await db.execute("DELETE FROM health_checks WHERE server_id NOT IN (SELECT id FROM servers)")
+    await db.execute("DELETE FROM execution_logs WHERE server_id NOT IN (SELECT id FROM servers)")
+    await db.commit()
+
+    # 首次启动：仅当 .env 提供了非空 LLM_API_KEY 时才写入默认供应商。
+    # 空 key 的供应商不可用，若落库会顶掉 get_default_provider 的 .env 回退，故不种子导入。
+    from app.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
     cursor = await db.execute("SELECT COUNT(*) FROM providers")
     count = (await cursor.fetchone())[0]
-    if count == 0:
-        from app.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
+    if count == 0 and LLM_API_KEY:
         await db.execute(
             "INSERT INTO providers (name, api_key, base_url, model, is_default, created_at) VALUES (?, ?, ?, ?, 1, ?)",
             ("默认", LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, datetime.now().isoformat()),
@@ -187,9 +249,15 @@ async def get_provider(provider_id: int) -> dict | None:
 
 
 async def get_default_provider() -> dict | None:
-    """获取当前标记为默认的供应商。"""
+    """获取当前标记为默认且 api_key 非空的供应商。
+
+    空 key 的默认供应商不可用（如历史库残留或占位行），返回 None
+    让调用方回退 .env 配置。
+    """
     db = await get_db()
-    cursor = await db.execute("SELECT * FROM providers WHERE is_default = 1 LIMIT 1")
+    cursor = await db.execute(
+        "SELECT * FROM providers WHERE is_default = 1 AND api_key != '' LIMIT 1"
+    )
     row = await cursor.fetchone()
     await db.close()
     return dict(row) if row else None
@@ -301,13 +369,14 @@ async def get_server(server_id: int) -> dict | None:
 async def create_server(
     name: str, host: str, port: int, username: str,
     auth_type: str, ssh_password: str, ssh_key_path: str, env: str,
+    is_demo: int = 0,
 ) -> dict | None:
     db = await get_db()
     now = datetime.now().isoformat()
     cursor = await db.execute(
-        """INSERT INTO servers (name, host, port, username, auth_type, ssh_password, ssh_key_path, env, status, schedule_interval, alert_cpu, alert_mem, alert_disk, webhook_url, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'unknown', 0, 0, 0, 0, '', ?)""",
-        (name, host, port, username, auth_type, ssh_password, ssh_key_path, env, now),
+        """INSERT INTO servers (name, host, port, username, auth_type, ssh_password, ssh_key_path, env, is_demo, status, schedule_interval, alert_cpu, alert_mem, alert_disk, webhook_url, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'unknown', 0, 0, 0, 0, '', ?)""",
+        (name, host, port, username, auth_type, ssh_password, ssh_key_path, env, is_demo, now),
     )
     await db.commit()
     new_id = cursor.lastrowid

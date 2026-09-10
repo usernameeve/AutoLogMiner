@@ -1,12 +1,15 @@
 """FastAPI 应用入口 — 生命周期管理、路由注册、静态文件和模板挂载。"""
 
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 import os
+import secrets
 
-from app.db import init_db
+from app import config
+from app.db import init_db, migrate_legacy_db
 from app.services.scheduler import start_scheduler, shutdown_scheduler
 from app.routes import diagnose, history, providers
 from app.routes import demo, servers, dashboard, timeline, knowledge
@@ -14,14 +17,42 @@ from app.routes import demo, servers, dashboard, timeline, knowledge
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用生命周期：启动时初始化数据库和调度器。"""
+    """应用生命周期：启动时迁移旧库、初始化数据库和调度器。"""
+    migrate_legacy_db()
+    config.ensure_fernet_key()
     await init_db()
     start_scheduler()
     yield
     shutdown_scheduler()
 
 
-app = FastAPI(title="LogDoctor - AI 日志诊断工具", lifespan=lifespan)
+app = FastAPI(
+    title="AutoLogMiner - AI 日志诊断工具",
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
+
+
+@app.middleware("http")
+async def admin_token_auth(request: Request, call_next):
+    """API 鉴权：ADMIN_TOKEN 非空时 /api/* 需 Bearer token（GET /api/health 豁免）。"""
+    path = request.url.path
+    is_api = path.startswith("/api/")
+    is_exempt = path == "/api/health" and request.method == "GET"
+    if is_api and not is_exempt and config.ADMIN_TOKEN:
+        scheme, _, provided = request.headers.get("Authorization", "").partition(" ")
+        if scheme.lower() != "bearer" or not secrets.compare_digest(
+            provided.encode("utf-8"), config.ADMIN_TOKEN.encode("utf-8")
+        ):
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Unauthorized"},
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+    return await call_next(request)
+
 
 # 挂载静态文件目录（CSS / JS）
 static_dir = os.path.join(os.path.dirname(__file__), "static")

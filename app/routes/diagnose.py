@@ -14,17 +14,16 @@ async def _resolve_credentials(provider_id: int | None) -> tuple[str, str, str]:
     """根据 provider_id 解析 LLM 凭证。
     - 有 provider_id → 查该供应商
     - 无 provider_id → 查默认供应商
-    - 无默认 → 回退到 .env 配置"""
+    - 供应商缺失或 api_key 为空（不可用）→ 回退到 .env 配置"""
     if provider_id is not None:
         p = await get_provider(provider_id)
         if not p:
             raise HTTPException(status_code=404, detail="供应商不存在")
     else:
         p = await get_default_provider()
-        if not p:
-            # 极端情况：数据库无默认供应商，回退 .env
-            from app.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
-            return LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
+    if not p or not p["api_key"]:
+        from app.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
+        return LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
     return p["api_key"], p["base_url"], p["model"]
 
 
@@ -70,6 +69,7 @@ async def diagnose_stream(req: DiagnoseRequest):
             yield "data: [DONE]\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            yield "data: [DONE]\n\n"
 
     return StreamingResponse(
         event_generator(),

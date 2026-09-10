@@ -1,5 +1,8 @@
 """Server management API — CRUD for servers, groups, health checks, and remote logs."""
 
+import os
+import re
+import shlex
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from app.services.ssh import encrypt_password, check_connectivity, tail_log, fetch_journalctl
@@ -8,16 +11,62 @@ from app.services.ssh import exec_command as ssh_exec
 from app.services.alerting import check_and_alert
 from app import db
 
-_DANGEROUS_PATTERNS = [
-    "rm -rf /", "rm -rf ~", "rm -rf .", "find . -delete", "find / -delete",
-    "mkfs.", "dd if=", "> /dev/sd",
-    "shutdown", "reboot", "halt", "poweroff", "init 0", "init 6",
-    ":(){ :|:& };:",  # fork bomb
-    "chmod 000 /", "chmod -R 000",
-    "iptables -P", "iptables -F",
-    "| sh", "| bash", "curl", "wget",
-]
-_DANGEROUS_OPERATORS = ["`", "$("]  # command substitution only; pipe/redirect are normal ops
+# 命令执行策略：硬拒 shell 元字符 + 首 token 白名单（直接档）+ 确认档。
+# 原始命令含任一元字符即拒绝，杜绝 `ls; rm -rf ~` 这类前缀绕过。
+_SHELL_METACHARS = set(";&|`$()<>{}") | {"\n", "\r"}
+_ALLOWED_BINARIES = {
+    "df", "ls", "cat", "tail", "head", "free", "uptime", "ps",
+    "journalctl", "du", "netstat", "ss", "top", "date", "whoami",
+    "id", "hostname", "uname",
+}
+_ALLOWED_BIN_DIRS = {"/bin", "/usr/bin", "/sbin", "/usr/sbin"}
+_DIRECT_PREFIXES = (["systemctl", "status"], ["/usr/bin/systemctl", "status"])
+# 参数 token 白名单：不含空格、引号与 shell 特殊字符
+_TOKEN_RE = re.compile(r"[A-Za-z0-9._/=:@,+-]+")
+
+# 日志请求参数白名单：值会进入远端 shell 命令，仅此形态可放行（`*` 保留给 tail glob）
+_LOG_PATH_RE = re.compile(r"/[A-Za-z0-9._/*-]+")
+_UNIT_RE = re.compile(r"[A-Za-z0-9@._-]+")
+
+
+def _is_direct_exec(parts: list[str]) -> bool:
+    """直接执行档：裸白名单命令、白名单目录下的绝对路径，或 systemctl status。
+
+    任意目录下的同名可执行文件（如 /tmp/ls、~/bin/ls）不算直接档。
+    """
+    head = parts[0]
+    if head in _ALLOWED_BINARIES:
+        return True
+    if parts[:2] in _DIRECT_PREFIXES:
+        return True
+    if head.startswith("/") and os.path.dirname(head) in _ALLOWED_BIN_DIRS \
+            and os.path.basename(head) in _ALLOWED_BINARIES:
+        return True
+    return False
+
+
+def _classify_command(command) -> tuple[str, str]:
+    """确定性命令分类器，返回 (tier, detail)。
+
+    tier = "reject"（400）、"confirm"（须 confirm=true）、"execute"（直接执行）。
+    """
+    if not isinstance(command, str) or command.strip() == "":
+        return "reject", "command is required"
+    if any(ch in _SHELL_METACHARS for ch in command):
+        return "reject", "command contains a forbidden shell metacharacter"
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        return "reject", "command is not valid shell-quoted input"
+    if not parts:
+        return "reject", "command is required"
+    for token in parts[1:]:
+        if not _TOKEN_RE.fullmatch(token):
+            return "reject", "command contains a disallowed argument token"
+    if _is_direct_exec(parts):
+        return "execute", ""
+    return "confirm", "confirmation required: command is not on the direct allowlist"
+
 
 router = APIRouter(prefix="/api", tags=["servers"])
 
@@ -160,7 +209,18 @@ async def fetch_server_logs(server_id: int, data: dict):
     log_path = data.get("log_path", "")
     log_type = data.get("log_type", "file")
     unit = data.get("unit", "")
-    lines = data.get("lines", 200)
+
+    # 校验先于任何 SSH 调用；通过后由 ssh.py 直接拼接（不得用 shlex.quote，否则破坏 glob）
+    try:
+        lines = int(data.get("lines", 200))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="lines must be an integer")
+    if not 1 <= lines <= 10000:
+        raise HTTPException(status_code=400, detail="lines must be between 1 and 10000")
+    if log_path and (not _LOG_PATH_RE.fullmatch(log_path) or ".." in log_path):
+        raise HTTPException(status_code=400, detail="Invalid log_path")
+    if unit and not _UNIT_RE.fullmatch(unit):
+        raise HTTPException(status_code=400, detail="Invalid unit")
 
     if log_type == "journalctl":
         content = await fetch_journalctl(
@@ -188,21 +248,29 @@ async def fetch_server_logs(server_id: int, data: dict):
 
 @router.post("/servers/{server_id}/execute")
 async def execute_command(server_id: int, data: dict):
-    """在目标服务器上执行任意命令，结果存入 execution_logs。需要 SSH 凭证。"""
+    """在目标服务器上执行命令，结果存入 execution_logs。需要 SSH 凭证。
+
+    策略：原始命令含 shell 元字符直接拒绝；首 token 命中白名单进入直接档，
+    其余进入确认档（须 confirm=true）。所有分支（含拦截）均写审计日志。
+    """
     srv = await db.get_server(server_id)
     if not srv:
         raise HTTPException(status_code=404, detail="Server not found")
-    command = data.get("command", "").strip()
-    if not command:
-        raise HTTPException(status_code=400, detail="Missing command")
-    # Block dangerous commands (pattern matching + dangerous operators)
-    cmd_lower = command.lower()
-    for d in _DANGEROUS_PATTERNS:
-        if d in cmd_lower:
-            raise HTTPException(status_code=400, detail=f"Dangerous command blocked: {d}")
-    for op in _DANGEROUS_OPERATORS:
-        if op in command:
-            raise HTTPException(status_code=400, detail=f"Dangerous operator blocked: {op}")
+
+    command = data.get("command", "")
+    tier, detail = _classify_command(command)
+
+    if tier == "reject":
+        await db.save_execution(
+            server_id, command if isinstance(command, str) else "", "",
+            f"blocked: {detail}", -1,
+        )
+        raise HTTPException(status_code=400, detail=detail)
+
+    if tier == "confirm" and data.get("confirm") is not True:
+        await db.save_execution(server_id, command, "", f"blocked: {detail}", -1)
+        raise HTTPException(status_code=400, detail=detail)
+
     stdout, stderr, code = await ssh_exec(
         srv["host"], srv["port"], srv["username"],
         srv["auth_type"], srv["ssh_password"], srv["ssh_key_path"],
@@ -246,12 +314,17 @@ async def health_trend(server_id: int, hours: int = 24):
 async def resolve_alert(alert_id: int):
     """Mark an alert as resolved."""
     db_conn = await db.get_db()
-    await db_conn.execute(
-        "UPDATE alerts SET is_resolved = 1, resolved_at = ? WHERE id = ?",
-        (datetime.now().isoformat(), alert_id),
-    )
-    await db_conn.commit()
-    await db_conn.close()
+    try:
+        cursor = await db_conn.execute("SELECT id FROM alerts WHERE id = ?", (alert_id,))
+        if await cursor.fetchone() is None:
+            raise HTTPException(status_code=404, detail="Alert not found")
+        await db_conn.execute(
+            "UPDATE alerts SET is_resolved = 1, resolved_at = ? WHERE id = ?",
+            (datetime.now().isoformat(), alert_id),
+        )
+        await db_conn.commit()
+    finally:
+        await db_conn.close()
     return {"status": "resolved"}
 
 

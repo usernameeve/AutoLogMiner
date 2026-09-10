@@ -7,6 +7,16 @@ from app.config import KNOWLEDGE_DIR
 router = APIRouter(prefix="/api", tags=["knowledge"])
 
 
+def _safe_knowledge_path(filename: str, status_code: int) -> str:
+    """校验文件名为纯 .md basename，且 realpath 落在 knowledge/ 目录内；否则抛 HTTPException。"""
+    safe = os.path.basename(filename)
+    root = os.path.realpath(KNOWLEDGE_DIR)
+    path = os.path.realpath(os.path.join(root, safe))
+    if safe != filename or not safe.endswith(".md") or not path.startswith(root + os.sep):
+        raise HTTPException(status_code=status_code, detail="Invalid knowledge file name")
+    return path
+
+
 @router.get("/knowledge")
 async def list_knowledge():
     """列出 knowledge/ 目录下所有 .md 文件及其大小。"""
@@ -21,22 +31,20 @@ async def list_knowledge():
 
 @router.post("/knowledge")
 async def upload_knowledge(file: UploadFile = File(...)):
-    """上传 .md 文件到 knowledge/ 目录，自动创建目录。仅允许 .md 后缀。"""
-    if not file.filename or not file.filename.endswith(".md"):
-        raise HTTPException(status_code=400, detail="Only .md files allowed")
+    """上传 .md 文件到 knowledge/ 目录，自动创建目录。拒绝路径穿越与非法后缀。"""
+    path = _safe_knowledge_path(file.filename or "", 400)
     os.makedirs(KNOWLEDGE_DIR, exist_ok=True)
-    path = os.path.join(KNOWLEDGE_DIR, file.filename)
     content = await file.read()
     with open(path, "wb") as f:
         f.write(content)
-    return {"status": "uploaded", "name": file.filename}
+    return {"status": "uploaded", "name": os.path.basename(path)}
 
 
 @router.delete("/knowledge/{filename}")
 async def delete_knowledge(filename: str):
-    """删除指定的知识库 .md 文件。仅允许删除 .md 文件，防止路径遍历。"""
-    path = os.path.join(KNOWLEDGE_DIR, filename)
-    if not os.path.isfile(path) or not filename.endswith(".md"):
+    """删除指定的知识库 .md 文件。文件名非法或文件不存在一律返回 404。"""
+    path = _safe_knowledge_path(filename, 404)
+    if not os.path.isfile(path):
         raise HTTPException(status_code=404, detail="File not found")
     os.remove(path)
     return {"status": "deleted"}

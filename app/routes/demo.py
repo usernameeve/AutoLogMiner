@@ -21,6 +21,7 @@ async def seed_demo_data():
         srv = await db.create_server(
             name=name, host=host, port=22, username="demo",
             auth_type="password", ssh_password="", ssh_key_path="", env=env,
+            is_demo=1,
         )
         if srv:
             srv_ids.append(srv["id"])
@@ -62,12 +63,22 @@ async def seed_demo_data():
 
 @router.delete("/demo/reset")
 async def reset_demo_data():
-    """Delete all demo data."""
+    """Delete only demo data (servers marked is_demo=1) and their related rows.
+
+    显式删除子表：不依赖 ON DELETE CASCADE，确保历史/旧库数据也被清干净；
+    真实服务器（is_demo=0）及其 health_checks / alerts / execution_logs 原样保留。
+    """
     db_conn = await db.get_db()
-    await db_conn.execute("DELETE FROM health_checks")
-    await db_conn.execute("DELETE FROM alerts")
-    await db_conn.execute("DELETE FROM execution_logs")
-    await db_conn.execute("DELETE FROM servers")
+    await db_conn.execute(
+        "DELETE FROM alerts WHERE server_id IN (SELECT id FROM servers WHERE is_demo=1)"
+    )
+    await db_conn.execute(
+        "DELETE FROM health_checks WHERE server_id IN (SELECT id FROM servers WHERE is_demo=1)"
+    )
+    await db_conn.execute(
+        "DELETE FROM execution_logs WHERE server_id IN (SELECT id FROM servers WHERE is_demo=1)"
+    )
+    await db_conn.execute("DELETE FROM servers WHERE is_demo=1")
     await db_conn.commit()
     await db_conn.close()
     return {"status": "reset"}
