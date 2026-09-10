@@ -1,8 +1,8 @@
-# AGENTS.md — AgentPlay 项目指南
+# AGENTS.md — AutoLogMiner 项目指南
 
 ## 项目概述
 
-AgentPlay 是一个 AI 驱动的运维工作台。覆盖 **服务器监控 -> 健康检查 -> 告警通知 -> 日志诊断 -> 远程执行 -> 事件归档** 的完整运维闭环。支持演示模式，无需真实服务器即可体验全部功能。核心技术：FastAPI 异步全链路 + asyncssh + Fernet 加密 + APScheduler 调度 + SSE 流式 AI + GSAP 动画。
+AutoLogMiner 是一个 AI 驱动的运维工作台。覆盖 **服务器监控 -> 健康检查 -> 告警通知 -> 日志诊断 -> 远程执行 -> 事件归档** 的完整运维闭环。支持演示模式，无需真实服务器即可体验全部功能。核心技术：FastAPI 异步全链路 + asyncssh + Fernet 加密 + APScheduler 调度 + SSE 流式 AI + GSAP 动画。
 
 ## 技术栈
 
@@ -20,7 +20,7 @@ AgentPlay 是一个 AI 驱动的运维工作台。覆盖 **服务器监控 -> �
 ## 目录结构
 
 ```
-ai-ops-logdoctor/
+AutoLogMiner/
 ├── run.py
 ├── requirements.txt
 ├── .env / .env.example
