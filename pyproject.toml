@@ -1,0 +1,20 @@
+# AutoLogMiner 工程配置 — ruff lint + pytest。
+# 运行时依赖见 requirements.txt；测试/开发依赖见 requirements-dev.txt。
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+# ruff 默认规则集：E4(import) / E7(statement) / E9(syntax) / F(pyflakes)；行宽不设限。
+select = ["E4", "E7", "E9", "F"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# T11 遗留：演示数据 24h 采样时间计算 `t` 未被 save_health_check 消费（该函数用自身 now()）。
+# T18 不改产品代码，仅对这一个文件豁免 F841；详见 T18 DoneClaim 风险记录。
+"app/routes/demo.py" = ["F841"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
