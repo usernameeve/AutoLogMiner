@@ -116,6 +116,10 @@ AI 诊断给出的修复步骤可一键在目标服务器执行，实时显示 s
 
 分页列出诊断记录，按时间倒序；按 ID 查看单条详情；单条诊断一键导出为 Markdown 报告。
 
+### 界面主题（深色运维控制台）
+
+全站 9 个页面统一为 GitHub-Dark 配色的深色运维控制台：`Inter` + `JetBrains Mono` 可变字体（jsdelivr CDN，带系统栈回退），内联线性 SVG 图标（无外部图标库），Chart.js 深色主题，GSAP 微动效（页面入场 / KPI 计数 / 骨架屏 / 状态点呼吸），并尊重系统 `prefers-reduced-motion`。响应式断点 1200 / 960 / 768，实测 1024 与 768 宽度不破版。本次为纯前端改动（`app/static/**` + `app/templates/**`），后端 API、数据库与测试零改动。设计 token 与扩展约定见 [`Docs/UI-Theme.md`](Docs/UI-Theme.md)。
+
 ---
 
 ## 快速开始
@@ -731,3 +735,4 @@ openssl rand -hex 16
 | [`Docs/Architecture.md`](Docs/Architecture.md) | 架构文档：分层、组件职责、请求/SSH/LLM 主链路、关键设计决策 |
 | [`Docs/Implementation-Plan.md`](Docs/Implementation-Plan.md) | 实施计划：四个波次、20 个任务、依赖矩阵、CI 与终验标准 |
 | [`Docs/Risks.md`](Docs/Risks.md) | 风险登记册：已缓解风险、残余风险、技术债、安全假设 |
+| [`Docs/UI-Theme.md`](Docs/UI-Theme.md) | UI 主题：深色运维控制台的设计 token、字体图标、图表与动效、扩展指南 |
