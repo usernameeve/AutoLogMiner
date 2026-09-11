@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>告警管理 - AutoLogMiner</title>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/inter@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/jetbrains-mono@5/index.css">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -11,7 +14,7 @@
 <header>
   <div class="inner">
     <a href="/" class="logo">
-      <span class="icon">&#9889;</span>
+      <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 2 4.6 13.2a.6.6 0 0 0 .48.96h5.05l-1 7.5a.6.6 0 0 0 1.07.44L18.99 10.8a.6.6 0 0 0-.48-.96h-5.05l1-7.5a.6.6 0 0 0-1.07-.44Z"/></svg></span>
       AutoLogMiner
     </a>
     <nav>
@@ -28,7 +31,7 @@
 </header>
 
 <main class="container">
-  <h2>告警管理</h2>
+  <h2 class="section-title">告警管理</h2>
   <div id="alerts-content"><div class="spinner active"></div></div>
 </main>
 

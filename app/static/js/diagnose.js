@@ -31,7 +31,7 @@ function addFileChip(name) {
   span.textContent = name + " ";
   const remove = document.createElement("span");
   remove.className = "chip-remove";
-  remove.textContent = "\u00d7";
+  remove.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>';
   remove.addEventListener("click", function () { span.remove(); });
   span.appendChild(remove);
   chips.appendChild(span);
@@ -109,11 +109,11 @@ function _severityClass(sev) {
 
 // LLM 输出不可信，必须转义后再注入 innerHTML。
 function _renderStreamText(el, text) {
-  el.innerHTML = '<pre style="white-space:pre-wrap">' + escapeHtml(text) + "</pre>";
+  el.innerHTML = '<pre class="result-pre">' + escapeHtml(text) + "</pre>";
 }
 
 function _errorHtml(msg) {
-  return '<div class="result-body"><p style="color:#d93025">诊断失败: ' + escapeHtml(String(msg)) + "</p></div>";
+  return '<div class="result-body"><p class="error-text">诊断失败: ' + escapeHtml(String(msg)) + "</p></div>";
 }
 
 // 从 LLM 文本中提取诊断 JSON（兼容 ```json 代码块 / 裸花括号）。

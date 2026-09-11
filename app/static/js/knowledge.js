@@ -8,17 +8,17 @@ async function loadKnowledge() {
   try {
     const resp = await apiFetch("/api/knowledge");
     const files = await resp.json();
-    if (!files.length) { list.innerHTML = "<p style=\"color:#9aa0a6\">暂无自定义知识文件，点击上方按钮上传 .md 文件</p>"; return; }
+    if (!files.length) { list.innerHTML = "<p class=\"empty\">暂无自定义知识文件，点击上方按钮上传 .md 文件</p>"; return; }
     let html = "<table class=\"server-table\"><thead><tr><th>文件名</th><th>大小</th><th>操作</th></tr></thead><tbody>";
     for (const f of files) {
-      html += `<tr><td>${escapeHtml(f.name)}</td><td>${(f.size / 1024).toFixed(1)} KB</td><td class="actions"><button data-action="delete-knowledge" data-name="${escapeHtml(f.name)}">删除</button></td></tr>`;
+      html += `<tr><td>${escapeHtml(f.name)}</td><td>${(f.size / 1024).toFixed(1)} KB</td><td class="actions"><button class="act-danger" data-action="delete-knowledge" data-name="${escapeHtml(f.name)}">删除</button></td></tr>`;
     }
     html += "</tbody></table>";
     list.innerHTML = html;
     list.querySelectorAll('button[data-action="delete-knowledge"]').forEach(function (btn) {
       btn.addEventListener("click", function () { deleteKnowledge(btn.dataset.name); });
     });
-  } catch (e) { list.innerHTML = `<p style="color:#d93025">${escapeHtml(e.message)}</p>`; }
+  } catch (e) { list.innerHTML = `<p class="error-text">${escapeHtml(e.message)}</p>`; }
 }
 
 async function uploadKnowledge() {

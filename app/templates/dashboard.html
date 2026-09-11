@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AutoLogMiner - AI 运维工作台</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/inter@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/jetbrains-mono@5/index.css">
 <link rel="stylesheet" href="/static/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
@@ -13,7 +15,7 @@
 <header>
   <div class="inner">
     <a href="/" class="logo">
-      <span class="icon">&#9889;</span>
+      <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 2 4.6 13.2a.6.6 0 0 0 .48.96h5.05l-1 7.5a.6.6 0 0 0 1.07.44L18.99 10.8a.6.6 0 0 0-.48-.96h-5.05l1-7.5a.6.6 0 0 0-1.07-.44Z"/></svg></span>
       AutoLogMiner
     </a>
     <nav>
@@ -30,22 +32,29 @@
 </header>
 
 <main class="container">
-  <div class="dash-summary" id="dash-summary"></div>
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-    <h2 style="margin:0">服务器概览</h2>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-outline btn-sm" onclick="refreshDashboard()">刷新</button>
-      <label style="font-size:12px;color:#5f6368;display:flex;align-items:center;gap:4px;cursor:pointer;margin-right:8px"><input type="checkbox" id="auto-refresh" onchange="toggleAutoRefresh()"> 自动刷新</label>
+  <div class="dash-summary" id="dash-summary">
+    <div class="dash-stat-skeleton" aria-hidden="true"><span class="sk-kpi-label"></span><span class="sk-kpi-value"></span></div>
+    <div class="dash-stat-skeleton" aria-hidden="true"><span class="sk-kpi-label"></span><span class="sk-kpi-value"></span></div>
+    <div class="dash-stat-skeleton" aria-hidden="true"><span class="sk-kpi-label"></span><span class="sk-kpi-value"></span></div>
+    <div class="dash-stat-skeleton" aria-hidden="true"><span class="sk-kpi-label"></span><span class="sk-kpi-value"></span></div>
+  </div>
+  <div class="dash-toolbar">
+    <h2>服务器概览</h2>
+    <div class="toolbar-group">
+      <button class="btn btn-outline btn-sm btn-refresh" onclick="refreshDashboard()">刷新</button>
+      <label class="dash-toolbar-label"><input type="checkbox" id="auto-refresh" onchange="toggleAutoRefresh()"> 自动刷新</label>
       <button class="btn btn-outline btn-sm" onclick="seedDemo(this)">演示数据</button>
       <button class="btn btn-outline btn-sm" id="btn-reset-demo">重置演示数据</button>
       <button class="btn btn-primary btn-sm" onclick="batchHealthCheck(this)">全部检测</button>
     </div>
   </div>
   <div class="server-grid" id="server-grid">
-    <div class="spinner active"></div>
+    <div class="skeleton-card" aria-hidden="true"><span class="sk-line sk-title"></span><span class="sk-line sk-meta"></span><div class="sk-metrics"><span></span><span></span><span></span></div><div class="sk-chart"></div></div>
+    <div class="skeleton-card" aria-hidden="true"><span class="sk-line sk-title"></span><span class="sk-line sk-meta"></span><div class="sk-metrics"><span></span><span></span><span></span></div><div class="sk-chart"></div></div>
+    <div class="skeleton-card" aria-hidden="true"><span class="sk-line sk-title"></span><span class="sk-line sk-meta"></span><div class="sk-metrics"><span></span><span></span><span></span></div><div class="sk-chart"></div></div>
   </div>
 
-  <div id="alerts-section" style="margin-top:32px"></div>
+  <div id="alerts-section" class="dash-alerts-section"></div>
 </main>
 
 <footer>AutoLogMiner &mdash; AI 驱动的运维工作台</footer>

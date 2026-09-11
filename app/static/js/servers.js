@@ -3,6 +3,14 @@
 // apiFetch delegate, escapeHtml, chart registry, animations and showToast.
 // server_detail.html defines the global SERVER_ID used by the detail functions.
 
+// List row action icons (12px inline SVG, same stroke language as the header icons).
+const _srvListIcons = {
+  detail: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+  check: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+  edit: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
+  del: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
+};
+
 async function loadServerList() {
   const container = document.getElementById("server-list-content");
   if (!container) return;
@@ -10,7 +18,7 @@ async function loadServerList() {
     const resp = await apiFetch("/api/servers");
     const data = await resp.json();
     if (data.length === 0) {
-      container.innerHTML = "<p style=\"color:#9aa0a6\">暂无服务器，点击上方按钮添加</p>";
+      container.innerHTML = "<p class=\"empty\">暂无服务器，点击上方按钮添加</p>";
       return;
     }
     let html = "<table class=\"server-table\"><thead><tr><th>名称</th><th>地址</th><th>环境</th><th>状态</th><th>定时</th><th>最后检测</th><th>操作</th></tr></thead><tbody>";
@@ -20,15 +28,15 @@ async function loadServerList() {
       html += `<tr>
         <td><strong>${escapeHtml(s.name)}</strong></td>
         <td>${escapeHtml(s.host)}:${s.port}</td>
-        <td><span class="env-tag">${escapeHtml(s.env)}</span></td>
+        <td><span class="env-tag env-${escapeHtml(s.env)}">${escapeHtml(s.env)}</span></td>
         <td><span class="status-dot ${sc}"></span>${sc}</td>
-        <td style="font-size:12px;color:#5f6368">${sched}</td>
-        <td style="font-size:12px;color:#5f6368">${s.last_checked_at ? new Date(s.last_checked_at).toLocaleString("zh-CN") : "-"}</td>
+        <td class="col-mono">${sched}</td>
+        <td class="col-mono">${s.last_checked_at ? formatTime(s.last_checked_at) : "-"}</td>
         <td class="actions">
-          <button data-action="detail" data-server-id="${s.id}">详情</button>
-          <button data-action="check" data-server-id="${s.id}">检测</button>
-          <button data-action="edit" data-server-id="${s.id}">编辑</button>
-          <button data-action="delete" data-server-id="${s.id}" style="color:#d93025">删除</button>
+          <button data-action="detail" data-server-id="${s.id}">${_srvListIcons.detail}详情</button>
+          <button data-action="check" data-server-id="${s.id}">${_srvListIcons.check}检测</button>
+          <button data-action="edit" data-server-id="${s.id}">${_srvListIcons.edit}编辑</button>
+          <button data-action="delete" data-server-id="${s.id}" class="act-danger">${_srvListIcons.del}删除</button>
         </td>
       </tr>`;
     }
@@ -44,7 +52,7 @@ async function loadServerList() {
       });
     });
   } catch (e) {
-    container.innerHTML = `<p style="color:#d93025">${escapeHtml(e.message)}</p>`;
+    container.innerHTML = `<p class="error-text">${escapeHtml(e.message)}</p>`;
   }
 }
 
@@ -57,6 +65,9 @@ function showAddServerModal() {
   document.getElementById("srv-auth").value = "password";
   document.getElementById("srv-env").value = "production";
   toggleAuthFields();
+  // [hidden] clears the template's initial state; inline display stays because
+  // app.js's GSAP close animation (_animModalOut) also toggles style.display.
+  document.getElementById("server-modal").hidden = false;
   document.getElementById("server-modal").style.display = "flex";
 }
 
@@ -64,8 +75,8 @@ function closeModal() { document.getElementById("server-modal").style.display = 
 
 function toggleAuthFields() {
   const auth = document.getElementById("srv-auth").value;
-  document.getElementById("pw-group").style.display = auth === "password" ? "" : "none";
-  document.getElementById("key-group").style.display = auth === "key" ? "" : "none";
+  document.getElementById("pw-group").hidden = auth !== "password";
+  document.getElementById("key-group").hidden = auth !== "key";
 }
 document.addEventListener("DOMContentLoaded", function() {
   const authSel = document.getElementById("srv-auth");
@@ -87,6 +98,7 @@ async function editServer(id) {
     document.getElementById("srv-keypath").value = "";
     document.getElementById("srv-env").value = s.env;
     toggleAuthFields();
+    document.getElementById("server-modal").hidden = false;
     document.getElementById("server-modal").style.display = "flex";
   } catch (e) { showToast("获取服务器信息失败"); }
 }
@@ -145,9 +157,9 @@ async function loadServerDetail() {
     const sc = s.status || "unknown";
     document.getElementById("server-info-card").innerHTML = `
       <h2><span class="status-dot ${sc}"></span>${escapeHtml(s.name)}</h2>
-      <div style="font-size:13px;color:#5f6368;margin-top:8px">
+      <div class="server-meta">
         ${escapeHtml(s.host)}:${s.port} &middot; ${escapeHtml(s.username)} &middot; ${escapeHtml(s.env)}
-        &middot; 最后检测: ${s.last_checked_at ? new Date(s.last_checked_at).toLocaleString("zh-CN") : "-"}
+        &middot; 最后检测: ${s.last_checked_at ? formatTime(s.last_checked_at) : "-"}
       </div>`;
     document.getElementById("sched-interval").value = s.schedule_interval || 0;
     document.getElementById("alert-cpu").value = s.alert_cpu || 0;
@@ -158,9 +170,9 @@ async function loadServerDetail() {
     const hresp = await apiFetch("/api/servers/" + SERVER_ID + "/healths?limit=5");
     const history = await hresp.json();
     if (history.length > 0) {
-      let rows = "<table class='server-table' style='margin-top:16px'><thead><tr><th>时间</th><th>CPU</th><th>内存</th><th>磁盘</th><th>AI 摘要</th></tr></thead><tbody>";
+      let rows = "<table class='server-table health-history-table'><thead><tr><th>时间</th><th>CPU</th><th>内存</th><th>磁盘</th><th>AI 摘要</th></tr></thead><tbody>";
       for (const h of history) {
-        rows += `<tr><td style="font-size:12px">${new Date(h.timestamp).toLocaleString("zh-CN")}</td><td>${h.cpu_percent != null ? h.cpu_percent + "%" : "-"}</td><td>${h.mem_percent != null ? h.mem_percent + "%" : "-"}</td><td>${h.disk_percent != null ? h.disk_percent + "%" : "-"}</td><td style="font-size:12px;color:#5f6368">${escapeHtml(h.ai_summary || "")}</td></tr>`;
+        rows += `<tr><td class="health-time">${formatTime(h.timestamp)}</td><td>${h.cpu_percent != null ? h.cpu_percent + "%" : "-"}</td><td>${h.mem_percent != null ? h.mem_percent + "%" : "-"}</td><td>${h.disk_percent != null ? h.disk_percent + "%" : "-"}</td><td class="health-summary-cell">${escapeHtml(h.ai_summary || "")}</td></tr>`;
       }
       rows += "</tbody></table>";
       document.getElementById("health-result").innerHTML = rows;
@@ -168,7 +180,7 @@ async function loadServerDetail() {
 
     loadTrendChart();
   } catch (e) {
-    document.getElementById("server-info-card").innerHTML = `<p style="color:#d93025">${escapeHtml(e.message)}</p>`;
+    document.getElementById("server-info-card").innerHTML = `<p class="error-text">${escapeHtml(e.message)}</p>`;
   }
 }
 
@@ -179,22 +191,48 @@ async function loadTrendChart() {
     const data = await resp.json();
     if (data.cpu.length < 2) return;
     destroyChart("trend");
+    const theme = window.CHART_THEME;
     const ctx = document.getElementById("trend-chart").getContext("2d");
+    // Task 15 refinement (geometry only, colors still from CHART_THEME):
+    // chart-area gradient fading to transparent at the plot floor; the previous
+    // flat fills stacked into an opaque wash that buried the grid lines.
+    const areaFill = (key) => (context) => {
+      const { ctx: c, chartArea } = context.chart;
+      if (!chartArea) return "rgba(0, 0, 0, 0)";
+      const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+      g.addColorStop(0, theme.fill[key]);
+      g.addColorStop(1, "rgba(0, 0, 0, 0)");
+      return g;
+    };
+    const hover = (key) => ({
+      pointHoverRadius: 4,
+      pointHoverBackgroundColor: theme.palette[key],
+      pointHoverBorderColor: theme.tooltip.bg,
+      pointHoverBorderWidth: 2,
+      pointHitRadius: 12,
+    });
     chartInstances["trend"] = new Chart(ctx, {
       type: "line",
       data: {
         labels: data.timestamps.map(t => new Date(t).toLocaleTimeString("zh-CN", {hour:"2-digit",minute:"2-digit"})),
         datasets: [
-          { label: "CPU %", data: data.cpu, borderColor: "#4285f4", backgroundColor: "rgba(66,133,244,0.1)", fill: true, tension: 0.3, pointRadius: 1 },
-          { label: "内存 %", data: data.mem, borderColor: "#ea4335", backgroundColor: "rgba(234,67,53,0.1)", fill: true, tension: 0.3, pointRadius: 1 },
-          { label: "磁盘 %", data: data.disk, borderColor: "#fbbc04", backgroundColor: "rgba(251,188,4,0.1)", fill: true, tension: 0.3, pointRadius: 1 },
+          { label: "CPU %", data: data.cpu, borderColor: theme.palette.cpu, backgroundColor: areaFill("cpu"), fill: true, borderWidth: 2, tension: 0.3, pointRadius: 1, ...hover("cpu") },
+          { label: "内存 %", data: data.mem, borderColor: theme.palette.mem, backgroundColor: areaFill("mem"), fill: true, borderWidth: 2, tension: 0.3, pointRadius: 1, ...hover("mem") },
+          { label: "磁盘 %", data: data.disk, borderColor: theme.palette.disk, backgroundColor: areaFill("disk"), fill: true, borderWidth: 2, tension: 0.3, pointRadius: 1, ...hover("disk") },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: "bottom" } },
-        scales: { y: { min: 0, max: 100, ticks: { callback: v => v + "%" } } },
+        layout: { padding: { top: 4, right: 10 } },
+        plugins: {
+          legend: { position: "top", align: "end", labels: { color: theme.labelColor, usePointStyle: true, pointStyle: "circle", boxWidth: 6, boxHeight: 6, font: { size: 11 }, padding: 6 } },
+          tooltip: { backgroundColor: theme.tooltip.bg, borderColor: theme.tooltip.border, borderWidth: 1, titleColor: theme.tooltip.title, bodyColor: theme.tooltip.body },
+        },
+        scales: {
+          x: { grid: { color: theme.gridColor, borderDash: [4, 4] }, ticks: { color: theme.tickColor, autoSkip: true, maxTicksLimit: 8, maxRotation: 0 } },
+          y: { min: 0, max: 100, grid: { color: theme.gridColor, borderDash: [4, 4] }, ticks: { color: theme.tickColor, stepSize: 25, callback: v => v + "%" } },
+        },
       },
     });
   } catch (e) { /* silent */ }
@@ -214,19 +252,19 @@ async function runHealthCheck() {
     html += `<div class="health-metric-card"><div class="hm-val">${m.mem_percent != null ? m.mem_percent + "%" : "-"}</div><div class="hm-label">内存</div></div>`;
     html += `<div class="health-metric-card"><div class="hm-val">${m.disk_percent != null ? m.disk_percent + "%" : "-"}</div><div class="hm-label">磁盘</div></div>`;
     html += "</div>";
-    if (data.ai_summary) html += `<div style="background:#f0f7ff;padding:12px;border-radius:6px;margin-top:12px;font-size:13px"><strong>AI 分析</strong><br>${escapeHtml(data.ai_summary)}</div>`;
+    if (data.ai_summary) html += `<div class="ai-analysis"><strong>AI 分析</strong><br>${escapeHtml(data.ai_summary)}</div>`;
     document.getElementById("health-result").innerHTML = html;
     _animHealthResult("health-result");
     loadTrendChart();
   } catch (e) {
-    document.getElementById("health-result").innerHTML = `<p style="color:#d93025">${escapeHtml(e.message)}</p>`;
+    document.getElementById("health-result").innerHTML = `<p class="error-text">${escapeHtml(e.message)}</p>`;
   } finally { btn.disabled = false; btn.textContent = "执行健康检查"; }
 }
 
 function toggleLogInput() {
   const type = document.getElementById("log-type").value;
-  document.getElementById("log-unit").style.display = type === "journalctl" ? "" : "none";
-  document.getElementById("log-path").style.display = type === "file" ? "" : "none";
+  document.getElementById("log-unit").hidden = type !== "journalctl";
+  document.getElementById("log-path").hidden = type !== "file";
 }
 
 async function fetchLog() {
@@ -317,10 +355,10 @@ async function inlineDiagnose() {
         stepsList.appendChild(li);
       }
     } else {
-      resultDiv.innerHTML = "<div class=\"result-body\"><pre style=\"white-space:pre-wrap\">" + escapeHtml(raw) + "</pre></div>";
+      resultDiv.innerHTML = "<div class=\"result-body\"><pre class=\"result-pre\">" + escapeHtml(raw) + "</pre></div>";
     }
   } catch (e) {
-    resultDiv.innerHTML = `<p style="color:#d93025">\u8bca\u65adu5931\u8d25: ${escapeHtml(e.message)}</p>`;
+    resultDiv.innerHTML = `<p class="error-text">\u8bca\u65adu5931\u8d25: ${escapeHtml(e.message)}</p>`;
   } finally { btn.disabled = false; btn.textContent = "AI \u8bca\u65ad"; }
 }
 

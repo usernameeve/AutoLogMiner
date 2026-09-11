@@ -6,6 +6,8 @@
 <title>历史记录 - AutoLogMiner</title>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <script src="/static/js/api.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/inter@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/jetbrains-mono@5/index.css">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -13,7 +15,7 @@
 <header>
   <div class="inner">
     <a href="/" class="logo">
-      <span class="icon">&#9889;</span>
+      <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 2 4.6 13.2a.6.6 0 0 0 .48.96h5.05l-1 7.5a.6.6 0 0 0 1.07.44L18.99 10.8a.6.6 0 0 0-.48-.96h-5.05l1-7.5a.6.6 0 0 0-1.07-.44Z"/></svg></span>
       AutoLogMiner
     </a>
     <nav>
@@ -29,7 +31,7 @@
   </div>
 </header>
 
-<main class="container">
+<main class="container page-history">
 
   <div class="card">
     <h2>历史诊断记录</h2>
@@ -43,21 +45,27 @@
 <footer>AutoLogMiner &mdash; AI 驱动的运维工作台</footer>
 
 <script>
+function formatTime(iso) {
+  const d = new Date(iso);
+  if (!iso || isNaN(d)) return "-";
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 async function loadHistory() {
   const container = document.getElementById("history-content");
   try {
     const resp = await apiFetch("/api/history");
     const data = await resp.json();
     if (!data.records || data.records.length === 0) {
-      container.innerHTML = '<div class="empty"><span class="icon">&#128203;</span><p>暂无诊断记录</p></div>';
+      container.innerHTML = '<div class="empty"><span class="icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3"/><path d="M9 3a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2H9V3Z"/><path d="M9 12h6M9 16h4"/></svg></span><p>暂无诊断记录</p></div>';
       return;
     }
-    let html = '<table class="data-table"><thead><tr><th style="width:50px">ID</th><th>时间</th><th>日志预览</th><th style="width:80px">严重程度</th><th>摘要</th><th class="col-actions">操作</th></tr></thead><tbody>';
+    let html = '<table class="data-table"><thead><tr><th class="col-id">ID</th><th>时间</th><th>日志预览</th><th class="col-sev">严重程度</th><th>摘要</th><th class="col-actions">操作</th></tr></thead><tbody>';
     for (const r of data.records) {
       const sevClass = getSeverityClass(r.severity);
       html += `<tr>
-        <td style="color:#9aa0a6">#${r.id}</td>
-        <td style="white-space:nowrap;font-size:12px;color:#5f6368">${new Date(r.timestamp).toLocaleString("zh-CN")}</td>
+        <td class="td-id">#${r.id}</td>
+        <td class="td-time">${formatTime(r.timestamp)}</td>
         <td class="col-preview">${escapeHtml(r.log_preview || "")}</td>
         <td><span class="severity-badge ${sevClass}">${escapeHtml(r.severity || "-")}</span></td>
         <td>${escapeHtml(r.summary || "")}</td>
@@ -70,7 +78,7 @@ async function loadHistory() {
       btn.addEventListener("click", function () { viewDetail(parseInt(btn.dataset.id, 10)); });
     });
   } catch (e) {
-    container.innerHTML = `<p style="color:#d93025">加载失败: ${escapeHtml(e.message)}</p>`;
+    container.innerHTML = `<p class="error-text">加载失败: ${escapeHtml(e.message)}</p>`;
   }
 }
 
@@ -103,15 +111,15 @@ async function viewDetail(id) {
     const result = JSON.parse(data.full_result || "{}");
     let stepsHtml = (result.fix_steps || []).map((s, i) => `<li>${escapeHtml(s)}</li>`).join("");
     const html = `<div class="result-body">
-      <p style="color:#5f6368;font-size:12px;margin-bottom:12px">
-        ${new Date(data.timestamp).toLocaleString("zh-CN")} &mdash; ${escapeHtml(data.log_preview)}
+      <p class="detail-meta">
+        ${formatTime(data.timestamp)} &mdash; ${escapeHtml(data.log_preview)}
       </p>
       <h3>问题摘要</h3><p>${escapeHtml(result.summary || "")}</p>
       <span class="severity-badge ${getSeverityClass(result.severity)}">${escapeHtml(result.severity || "-")}</span>
       <h3>根因分析</h3><p>${escapeHtml(result.root_cause || "")}</p>
       <h3>修复步骤</h3><ol>${stepsHtml || "<li>无</li>"}</ol>
       <h3>预防建议</h3><p>${escapeHtml(result.prevention || "")}</p>
-      <p style="margin-top:20px"><a href="/history">&larr; 返回列表</a> &nbsp; <a href="#" id="export-report-link" data-id="${id}" style="color:#1a73e8">导出 Markdown</a></p>
+      <p class="detail-actions"><a href="/history">&larr; 返回列表</a> &nbsp; <a href="#" id="export-report-link" data-id="${id}">导出 Markdown</a></p>
     </div>`;
     document.getElementById("history-content").innerHTML = html;
     const exportLink = document.getElementById("export-report-link");

@@ -30,9 +30,9 @@
       overlay.innerHTML =
         '<div class="modal">' +
           '<h3>需要管理员令牌</h3>' +
-          '<p style="font-size:13px;color:#5f6368;margin:0 0 8px">接口返回 401，请输入 ADMIN_TOKEN 后重试。</p>' +
+          '<p class="modal-desc">接口返回 401，请输入 ADMIN_TOKEN 后重试。</p>' +
           '<input id="api-token-input" type="password" placeholder="ADMIN_TOKEN" autocomplete="off">' +
-          '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">' +
+          '<div class="modal-actions">' +
             '<button type="button" id="api-token-cancel" class="btn btn-outline btn-sm">取消</button>' +
             '<button type="button" id="api-token-save" class="btn btn-primary btn-sm">保存并重试</button>' +
           '</div>' +

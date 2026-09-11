@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>日志诊断 - AutoLogMiner</title>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/inter@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/jetbrains-mono@5/index.css">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -12,7 +14,7 @@
 <header>
   <div class="inner">
     <a href="/" class="logo">
-      <span class="icon">&#9889;</span>
+      <span class="icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 2 4.6 13.2a.6.6 0 0 0 .48.96h5.05l-1 7.5a.6.6 0 0 0 1.07.44L18.99 10.8a.6.6 0 0 0-.48-.96h-5.05l1-7.5a.6.6 0 0 0-1.07-.44Z"/></svg></span>
       AutoLogMiner
     </a>
     <nav>
@@ -32,9 +34,9 @@
 
   <div class="card">
     <h2>日志诊断</h2>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <p class="desc" style="margin-bottom:0">粘贴日志内容或使用示例快速体验：</p>
-      <div style="display:flex;gap:6px">
+    <div class="diag-head">
+      <p class="desc">粘贴日志内容或使用示例快速体验：</p>
+      <div class="diag-samples">
         <button class="btn btn-outline btn-sm" onclick="loadSample('nginx502')">Nginx 502</button>
         <button class="btn btn-outline btn-sm" onclick="loadSample('mysqlConn')">MySQL 连接</button>
         <button class="btn btn-outline btn-sm" onclick="loadSample('dockerOOM')">Docker OOM</button>
@@ -45,8 +47,7 @@
     <div class="log-input-wrap">
       <textarea id="log-input" placeholder="在此粘贴日志内容..."></textarea>
     </div>
-    <div class="toolbar">
-      <button class="btn btn-primary" id="diagnose-btn" onclick="diagnoseStream()">开始诊断</button>
+    <div class="toolbar diag-toolbar">
       <select class="hint-select" id="service-hint">
         <option value="">自动识别服务类型</option>
         <option value="Nginx">Nginx</option>
@@ -58,16 +59,22 @@
       <select class="hint-select" id="provider-select">
         <option value="">默认供应商</option>
       </select>
-      <a href="/providers" class="provider-link" title="管理供应商">&#9881;</a>
-      <label for="file-input" class="btn btn-outline btn-sm" style="cursor:pointer">选择文件</label>
-      <input type="file" id="file-input" accept=".log,.txt,.out" onchange="handleFilePick(this)" style="display:none">
+      <a href="/providers" class="provider-link" title="管理供应商"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.7 15a1.7 1.7 0 0 0-1.55-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.7 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6h.08A1.7 1.7 0 0 0 10.1 3.05V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.08c.23.66.85 1.1 1.55 1.1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.03Z"/></svg></a>
+      <label for="file-input" class="btn btn-outline btn-sm">选择文件</label>
+      <input type="file" id="file-input" accept=".log,.txt,.out" onchange="handleFilePick(this)">
+      <button class="btn btn-primary diag-cta" id="diagnose-btn" onclick="diagnoseStream()">开始诊断</button>
     </div>
   </div>
 
-  <div id="result-section" class="result-section">
+  <div id="result-section" class="result-section visible">
     <div id="spinner" class="spinner"></div>
     <div class="result-card">
-      <div id="result-content"></div>
+      <div id="result-content">
+        <div class="empty">
+          <span class="icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>
+          <p>粘贴日志或加载示例后，点击「开始诊断」查看结构化诊断结果</p>
+        </div>
+      </div>
     </div>
   </div>
 
